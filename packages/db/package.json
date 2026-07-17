@@ -10,10 +10,12 @@
     }
   },
   "scripts": {
+    "check-types": "tsc --noEmit",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "bun --env-file=../../apps/server/.env run src/seed/index.ts"
   },
   "dependencies": {
     "@my-better-t-app/env": "workspace:*",

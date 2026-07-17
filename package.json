@@ -33,12 +33,14 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "check-types": "turbo run check-types",
+    "test": "turbo run test",
     "dev:web": "turbo run dev -F web",
     "dev:server": "turbo run dev -F server",
     "db:push": "turbo run db:push -F @my-better-t-app/db",
     "db:studio": "turbo run db:studio -F @my-better-t-app/db",
     "db:generate": "turbo run db:generate -F @my-better-t-app/db",
     "db:migrate": "turbo run db:migrate -F @my-better-t-app/db",
+    "db:seed": "turbo run db:seed -F @my-better-t-app/db",
     "deploy:setup": "vercel link",
     "dev:vercel": "vercel dev -L",
     "env:preview": "tsx scripts/sync-vercel-env.ts preview",
@@ -46,7 +48,8 @@
     "deploy": "vercel deploy",
     "deploy:prod": "vercel deploy --prod",
     "deploy:check": "vercel deploy --dry",
-    "check": "biome check --write ."
+    "check": "biome check --write .",
+    "check:ci": "biome check apps/server/src apps/web/src/routes/index.tsx apps/web/src/routes/_auth/dashboard.tsx packages/api/src packages/auth/src packages/db/src packages/env/src package.json turbo.json biome.json"
   },
   "dependencies": {
     "@my-better-t-app/env": "workspace:*",

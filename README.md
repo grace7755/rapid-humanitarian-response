@@ -30,12 +30,27 @@ bun install
 This project uses PostgreSQL with Drizzle ORM.
 
 1. Make sure you have a PostgreSQL database set up.
-2. Update your `apps/server/.env` file with your PostgreSQL connection details.
+2. Copy `apps/server/.env.example` to `apps/server/.env` and provide local values.
+3. Choose the schema workflow for the target database:
 
-3. Apply the schema to your database:
+For a disposable local development database, schema push is available:
 
 ```bash
 bun run db:push
+```
+
+For shared, preview, and production databases, generate and apply committed migrations:
+
+```bash
+bun run db:generate
+bun run db:migrate
+```
+
+Do not use `db:push` against production. Seed the idempotent fictional demo
+organization after the schema exists:
+
+```bash
+bun run db:seed
 ```
 
 Then, run the development server:
@@ -94,7 +109,26 @@ For more details, see the guide on [Deploying to Vercel](https://www.better-t-st
 
 ## Git Hooks and Formatting
 
-- Run checks: `bun run check`
+- Apply safe formatting fixes: `bun run check`
+- Run the non-mutating backend CI check: `bun run check:ci`
+
+## Quality Gates
+
+Run these commands from the repository root:
+
+```bash
+bun install
+bun run check:ci
+bun run check-types
+bun run test
+bun run build
+bun run db:generate
+bun run deploy:check
+```
+
+`deploy:check` requires the repository to be linked to the intended Vercel
+project. Database generation is non-mutating; migration application and seeding
+write to the database configured by `DATABASE_URL`.
 
 ## Project Structure
 
@@ -117,11 +151,14 @@ my-better-t-app/
 - `bun run dev:web`: Start only the web application
 - `bun run dev:server`: Start only the server
 - `bun run check-types`: Check TypeScript types across all apps
+- `bun run test`: Run package-owned tests through Turborepo
 - `bun run db:push`: Push schema changes to database
-- `bun run db:generate`: Generate database client/types
+- `bun run db:generate`: Generate Drizzle SQL migrations
 - `bun run db:migrate`: Run database migrations
+- `bun run db:seed`: Upsert fictional demo organization records
 - `bun run db:studio`: Open database studio UI
 - `bun run check`: Run Biome formatting and linting
+- `bun run check:ci`: Run non-mutating backend and changed-route checks
 - `bun run deploy:setup`: Link this repo to a Vercel project (first-time setup)
 - `bun run dev:vercel`: Run the Vercel Services dev environment locally
 - `bun run env:preview`: Sync local env files to the Vercel preview environment

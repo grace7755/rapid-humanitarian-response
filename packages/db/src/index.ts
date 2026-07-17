@@ -9,4 +9,5 @@ export function createDb() {
   return drizzle(sql, { schema });
 }
 
-export const db = createDb();
+export const neonSql = neon(env.DATABASE_URL);
+export const db = drizzle(neonSql, { schema });
