@@ -49,7 +49,7 @@
     "deploy:prod": "vercel deploy --prod",
     "deploy:check": "vercel deploy --dry",
     "check": "biome check --write .",
-    "check:ci": "biome check apps/server/src apps/web/src/routes/index.tsx apps/web/src/routes/_auth/dashboard.tsx packages/api/src packages/auth/src packages/db/src packages/env/src package.json turbo.json biome.json"
+    "check:ci": "biome check apps/server/src apps/web/src/components apps/web/src/features apps/web/src/routes packages/api/src packages/auth/src packages/db/src packages/env/src package.json turbo.json biome.json"
   },
   "dependencies": {
     "@my-better-t-app/env": "workspace:*",

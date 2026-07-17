@@ -1,20 +1,9 @@
-import { ORPCError, os } from "@orpc/server";
+import { requireOperator } from "./middleware/operator";
+import { o } from "./procedure";
 
-import type { Context } from "./context";
-
-export const o = os.$context<Context>();
+export { o } from "./procedure";
 
 export const publicProcedure = o;
 
-const requireAuth = o.middleware(async ({ context, next }) => {
-  if (!context.session?.user) {
-    throw new ORPCError("UNAUTHORIZED");
-  }
-  return next({
-    context: {
-      session: context.session,
-    },
-  });
-});
-
-export const protectedProcedure = publicProcedure.use(requireAuth);
+export const operatorProcedure = publicProcedure.use(requireOperator);
+export const protectedProcedure = operatorProcedure;

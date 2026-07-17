@@ -19,7 +19,6 @@ function generateIncidentReference() {
   const randomPart = crypto
     .randomUUID()
     .replaceAll("-", "")
-    .slice(0, 12)
     .toUpperCase();
   return `RHR-${randomPart}`;
 }
@@ -180,6 +179,27 @@ export async function updateIncidentState(
     .update(incidents)
     .set({ state: toState, updatedAt: new Date() })
     .where(and(eq(incidents.id, incidentId), eq(incidents.state, fromState)))
+    .returning({ id: incidents.id, state: incidents.state });
+
+  return updated ?? null;
+}
+
+export async function startIncidentReview(
+  incidentId: string,
+  reviewerUserId: string,
+) {
+  const now = new Date();
+  const [updated] = await db
+    .update(incidents)
+    .set({
+      reviewedAt: now,
+      reviewedByUserId: reviewerUserId,
+      state: "reviewing",
+      updatedAt: now,
+    })
+    .where(
+      and(eq(incidents.id, incidentId), eq(incidents.state, "submitted")),
+    )
     .returning({ id: incidents.id, state: incidents.state });
 
   return updated ?? null;

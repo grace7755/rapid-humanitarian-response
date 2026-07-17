@@ -3,6 +3,7 @@ import { Input } from "@my-better-t-app/ui/components/input";
 import { Label } from "@my-better-t-app/ui/components/label";
 import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { toast } from "sonner";
 import z from "zod";
 
@@ -11,10 +12,9 @@ import { authClient } from "@/lib/auth-client";
 import Loader from "./loader";
 
 export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () => void }) {
-  const navigate = useNavigate({
-    from: "/",
-  });
+  const navigate = useNavigate();
   const { isPending } = authClient.useSession();
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const form = useForm({
     defaultValues: {
@@ -23,9 +23,10 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
       name: "",
     },
     onSubmit: async ({ value }) => {
+      setAuthError(null);
       await authClient.signUp.email(
         {
-          email: value.email,
+          email: value.email.trim(),
           password: value.password,
           name: value.name,
         },
@@ -36,8 +37,11 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
             });
             toast.success("Sign up successful");
           },
-          onError: (error) => {
-            toast.error(error.error.message || error.error.statusText);
+          onError: () => {
+            const message =
+              "Account setup is unavailable for this email. Contact the platform administrator if access was expected.";
+            setAuthError(message);
+            toast.error(message);
           },
         },
       );
@@ -46,7 +50,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
       onSubmit: z.object({
         name: z.string().min(2, "Name must be at least 2 characters"),
         email: z.email("Invalid email address"),
-        password: z.string().min(8, "Password must be at least 8 characters"),
+        password: z.string().min(12, "Password must be at least 12 characters"),
       }),
     },
   });
@@ -56,8 +60,20 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
   }
 
   return (
-    <div className="mx-auto w-full mt-10 max-w-md p-6">
-      <h1 className="mb-6 text-center text-3xl font-bold">Create Account</h1>
+    <div className="w-full rounded-xl border bg-card p-5 shadow-sm sm:p-7">
+      <h1 className="mb-2 text-center text-3xl font-bold">Operator setup</h1>
+      <p className="mb-6 text-center text-muted-foreground">
+        Account creation succeeds only for pre-authorized operator emails.
+      </p>
+
+      {authError ? (
+        <p
+          className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+          role="alert"
+        >
+          {authError}
+        </p>
+      ) : null}
 
       <form
         onSubmit={(e) => {
@@ -75,12 +91,14 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
                 <Input
                   id={field.name}
                   name={field.name}
+                  autoComplete="name"
+                  className="min-h-11"
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
                 />
                 {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
+                  <p key={error?.message} className="text-sm text-destructive">
                     {error?.message}
                   </p>
                 ))}
@@ -98,12 +116,14 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
                   id={field.name}
                   name={field.name}
                   type="email"
+                  autoComplete="email"
+                  className="min-h-11"
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
                 />
                 {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
+                  <p key={error?.message} className="text-sm text-destructive">
                     {error?.message}
                   </p>
                 ))}
@@ -121,12 +141,14 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
                   id={field.name}
                   name={field.name}
                   type="password"
+                  autoComplete="new-password"
+                  className="min-h-11"
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
                 />
                 {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
+                  <p key={error?.message} className="text-sm text-destructive">
                     {error?.message}
                   </p>
                 ))}
@@ -139,8 +161,12 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
           selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}
         >
           {({ canSubmit, isSubmitting }) => (
-            <Button type="submit" className="w-full" disabled={!canSubmit || isSubmitting}>
-              {isSubmitting ? "Submitting..." : "Sign Up"}
+            <Button
+              type="submit"
+              className="min-h-11 w-full"
+              disabled={!canSubmit || isSubmitting}
+            >
+              {isSubmitting ? "Creating account…" : "Create operator account"}
             </Button>
           )}
         </form.Subscribe>
@@ -150,9 +176,9 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
         <Button
           variant="link"
           onClick={onSwitchToSignIn}
-          className="text-indigo-600 hover:text-indigo-800"
+          className="min-h-11"
         >
-          Already have an account? Sign In
+          Back to sign in
         </Button>
       </div>
     </div>

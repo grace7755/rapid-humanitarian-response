@@ -19,10 +19,16 @@ export async function createContext({ context }: CreateContextOptions) {
   });
 
   return {
-    auth: null,
     log: requestContext.get("log"),
     requestId: requestContext.get("requestId"),
-    session,
+    session: session?.user
+      ? {
+          user: {
+            email: session.user.email,
+            id: session.user.id,
+          },
+        }
+      : null,
   };
 }
 

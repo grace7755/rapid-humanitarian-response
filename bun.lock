@@ -115,6 +115,7 @@
       "devDependencies": {
         "@my-better-t-app/config": "workspace:*",
         "typescript": "catalog:",
+        "vitest": "^4.1.10",
       },
     },
     "packages/config": {
