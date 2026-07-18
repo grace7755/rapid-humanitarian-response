@@ -1,5 +1,5 @@
 {
-  "id": "7dc93e4d-4f7b-44a3-8925-781fb721af22",
+  "id": "372eb413-7ecc-4500-8434-b13e1bd86d04",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -76,8 +76,12 @@
           "name": "audit_events_incident_id_incidents_id_fk",
           "tableFrom": "audit_events",
           "tableTo": "incidents",
-          "columnsFrom": ["incident_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "incident_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -85,8 +89,12 @@
           "name": "audit_events_actor_user_id_user_id_fk",
           "tableFrom": "audit_events",
           "tableTo": "user",
-          "columnsFrom": ["actor_user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "actor_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -212,8 +220,12 @@
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -300,8 +312,12 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -311,7 +327,9 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": ["token"]
+          "columns": [
+            "token"
+          ]
         }
       },
       "policies": {},
@@ -375,7 +393,9 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": ["email"]
+          "columns": [
+            "email"
+          ]
         }
       },
       "policies": {},
@@ -551,8 +571,12 @@
           "name": "evidence_incident_id_incidents_id_fk",
           "tableFrom": "evidence",
           "tableTo": "incidents",
-          "columnsFrom": ["incident_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "incident_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -560,8 +584,12 @@
           "name": "evidence_created_by_user_id_user_id_fk",
           "tableFrom": "evidence",
           "tableTo": "user",
-          "columnsFrom": ["created_by_user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -840,8 +868,12 @@
           "name": "incidents_reviewed_by_user_id_user_id_fk",
           "tableFrom": "incidents",
           "tableTo": "user",
-          "columnsFrom": ["reviewed_by_user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "reviewed_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -853,6 +885,22 @@
         "incidents_source_type_check": {
           "name": "incidents_source_type_check",
           "value": "\"incidents\".\"source_type\" in ('community', 'manual', 'reliefweb')"
+        },
+        "incidents_incident_type_check": {
+          "name": "incidents_incident_type_check",
+          "value": "\"incidents\".\"incident_type\" is null or \"incidents\".\"incident_type\" in ('flood', 'landslide', 'cyclone', 'fire', 'earthquake', 'displacement', 'food_insecurity', 'water_shortage', 'medical_access', 'other')"
+        },
+        "incidents_country_check": {
+          "name": "incidents_country_check",
+          "value": "\"incidents\".\"country\" = 'Bangladesh'"
+        },
+        "incidents_division_check": {
+          "name": "incidents_division_check",
+          "value": "\"incidents\".\"division\" = 'Chattogram'"
+        },
+        "incidents_district_check": {
+          "name": "incidents_district_check",
+          "value": "\"incidents\".\"district\" is null or \"incidents\".\"district\" in ('Cox''s Bazar', 'Chattogram', 'Bandarban', 'Rangamati', 'Khagrachhari', 'Feni', 'Noakhali', 'Lakshmipur', 'Cumilla', 'Chandpur', 'Brahmanbaria', 'Other or Unknown')"
         },
         "incidents_occurred_at_precision_check": {
           "name": "incidents_occurred_at_precision_check",
@@ -880,15 +928,15 @@
         },
         "incidents_needs_array_check": {
           "name": "incidents_needs_array_check",
-          "value": "jsonb_typeof(\"incidents\".\"needs\") = 'array'"
+          "value": "jsonb_typeof(\"incidents\".\"needs\") = 'array' and \"incidents\".\"needs\" <@ '[\"rescue\",\"shelter\",\"food\",\"water\",\"medical\",\"sanitation\",\"protection\",\"transport\",\"information\",\"other\"]'::jsonb and jsonb_array_length(\"incidents\".\"needs\") <= 10"
         },
         "incidents_risk_flags_object_check": {
           "name": "incidents_risk_flags_object_check",
-          "value": "jsonb_typeof(\"incidents\".\"risk_flags\") = 'object'"
+          "value": "jsonb_typeof(\"incidents\".\"risk_flags\") = 'object' and \"incidents\".\"risk_flags\" ?& array['peopleTrapped', 'noSafeWater', 'noFood', 'urgentMedicalNeed', 'displacement', 'vulnerableGroupsReported', 'accessBlocked'] and \"incidents\".\"risk_flags\" - array['peopleTrapped', 'noSafeWater', 'noFood', 'urgentMedicalNeed', 'displacement', 'vulnerableGroupsReported', 'accessBlocked'] = '{}'::jsonb and jsonb_typeof(\"incidents\".\"risk_flags\"->'peopleTrapped') = 'boolean' and jsonb_typeof(\"incidents\".\"risk_flags\"->'noSafeWater') = 'boolean' and jsonb_typeof(\"incidents\".\"risk_flags\"->'noFood') = 'boolean' and jsonb_typeof(\"incidents\".\"risk_flags\"->'urgentMedicalNeed') = 'boolean' and jsonb_typeof(\"incidents\".\"risk_flags\"->'displacement') = 'boolean' and jsonb_typeof(\"incidents\".\"risk_flags\"->'vulnerableGroupsReported') = 'boolean' and jsonb_typeof(\"incidents\".\"risk_flags\"->'accessBlocked') = 'boolean'"
         },
         "incidents_unknowns_array_check": {
           "name": "incidents_unknowns_array_check",
-          "value": "jsonb_typeof(\"incidents\".\"unknowns\") = 'array'"
+          "value": "jsonb_typeof(\"incidents\".\"unknowns\") = 'array' and jsonb_array_length(\"incidents\".\"unknowns\") <= 10 and not jsonb_path_exists(\"incidents\".\"unknowns\", '$[*] ? (@.type() != \"string\")')"
         }
       },
       "isRLSEnabled": false
@@ -959,8 +1007,12 @@
           "name": "incident_matches_incident_id_incidents_id_fk",
           "tableFrom": "incident_matches",
           "tableTo": "incidents",
-          "columnsFrom": ["incident_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "incident_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -968,8 +1020,12 @@
           "name": "incident_matches_organization_id_organizations_id_fk",
           "tableFrom": "incident_matches",
           "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -979,7 +1035,10 @@
         "incident_matches_incident_org_unique": {
           "name": "incident_matches_incident_org_unique",
           "nullsNotDistinct": false,
-          "columns": ["incident_id", "organization_id"]
+          "columns": [
+            "incident_id",
+            "organization_id"
+          ]
         }
       },
       "policies": {},
@@ -1132,7 +1191,7 @@
         },
         "organizations_sectors_array_check": {
           "name": "organizations_sectors_array_check",
-          "value": "jsonb_typeof(\"organizations\".\"sectors\") = 'array'"
+          "value": "jsonb_typeof(\"organizations\".\"sectors\") = 'array' and \"organizations\".\"sectors\" <@ '[\"search_and_rescue\",\"emergency_response\",\"shelter\",\"camp_management\",\"food_assistance\",\"nutrition\",\"water_sanitation_hygiene\",\"health\",\"emergency_medical_support\",\"protection\",\"logistics\",\"emergency_transport\",\"information_management\",\"community_communication\",\"other\"]'::jsonb"
         },
         "organizations_review_sources_array_check": {
           "name": "organizations_review_sources_array_check",
@@ -1226,8 +1285,12 @@
           "name": "outreach_drafts_incident_id_incidents_id_fk",
           "tableFrom": "outreach_drafts",
           "tableTo": "incidents",
-          "columnsFrom": ["incident_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "incident_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1235,8 +1298,12 @@
           "name": "outreach_drafts_organization_id_organizations_id_fk",
           "tableFrom": "outreach_drafts",
           "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1244,8 +1311,12 @@
           "name": "outreach_drafts_created_by_user_id_user_id_fk",
           "tableFrom": "outreach_drafts",
           "tableTo": "user",
-          "columnsFrom": ["created_by_user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1255,7 +1326,10 @@
         "outreach_drafts_incident_org_unique": {
           "name": "outreach_drafts_incident_org_unique",
           "nullsNotDistinct": false,
-          "columns": ["incident_id", "organization_id"]
+          "columns": [
+            "incident_id",
+            "organization_id"
+          ]
         }
       },
       "policies": {},
