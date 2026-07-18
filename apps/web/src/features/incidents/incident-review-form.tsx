@@ -17,6 +17,8 @@ import { type FormEvent, useRef, useState } from "react";
 import ErrorSummary from "@/components/error-summary";
 import { orpc } from "@/utils/orpc";
 
+import { toLocalDateTimeValue } from "./review-form-state";
+
 type IncidentDetail = Awaited<
   ReturnType<AppRouterClient["operator"]["incident"]["get"]>
 >;
@@ -39,15 +41,6 @@ function displayLabel(value: string) {
   return value
     .replaceAll("_", " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function toLocalDateTimeValue(value: string | null) {
-  if (!value) return "";
-  const date = new Date(value);
-  const localDate = new Date(
-    date.getTime() - date.getTimezoneOffset() * 60_000,
-  );
-  return localDate.toISOString().slice(0, 16);
 }
 
 function makeInitialValues(incident: IncidentDetail): ReviewFormValues {

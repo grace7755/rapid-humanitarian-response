@@ -16,6 +16,10 @@ import { type FormEvent, useCallback, useRef, useState } from "react";
 import ErrorSummary from "@/components/error-summary";
 import { orpc } from "@/utils/orpc";
 
+import {
+  clearConsumedTurnstileToken,
+  getNextTurnstileResetKey,
+} from "./form-state";
 import TurnstileWidget from "./turnstile-widget";
 
 type FormValues = {
@@ -130,12 +134,12 @@ export default function IncidentForm() {
         to: "/report/success/$reference",
       });
     } catch {
-      setValues((current) => ({ ...current, turnstileToken: "" }));
+      setValues(clearConsumedTurnstileToken);
       setFieldErrors((current) => ({
         ...current,
         turnstileToken: "Complete human verification again before retrying.",
       }));
-      setTurnstileResetKey((current) => current + 1);
+      setTurnstileResetKey(getNextTurnstileResetKey);
       setSubmissionError(
         "The report could not be submitted. Your entries are still here; please retry.",
       );
