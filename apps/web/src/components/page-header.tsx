@@ -12,15 +12,15 @@ export default function PageHeader({
   return (
     <header className="space-y-3">
       {eyebrow ? (
-        <p className="text-sm font-semibold uppercase tracking-wide text-primary">
+        <p className="font-semibold text-primary text-sm uppercase tracking-wide">
           {eyebrow}
         </p>
       ) : null}
-      <h1 className="max-w-4xl text-3xl font-bold tracking-tight sm:text-4xl">
+      <h1 className="max-w-4xl font-bold text-3xl tracking-tight sm:text-4xl">
         {title}
       </h1>
       {description ? (
-        <p className="max-w-2xl text-base leading-7 text-muted-foreground">
+        <p className="max-w-2xl text-base text-muted-foreground leading-7">
           {description}
         </p>
       ) : null}

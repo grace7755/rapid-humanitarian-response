@@ -13,7 +13,7 @@ function SignInRoute() {
 
   return (
     <main className="mx-auto w-full max-w-lg px-4 py-8 sm:py-12">
-      <p className="mb-2 text-center text-sm font-medium text-amber-700 dark:text-amber-300">
+      <p className="mb-2 text-center font-medium text-amber-700 text-sm dark:text-amber-300">
         Demo Mode · Authorized operators only
       </p>
       {isFirstTimeSetup ? (

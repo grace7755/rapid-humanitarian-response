@@ -1,4 +1,5 @@
 import { Button } from "@my-better-t-app/ui/components/button";
+import { toORPCError } from "@orpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
@@ -28,11 +29,7 @@ function getRawDescription(rawReport: string) {
   return rawReport;
 }
 
-export default function IncidentDetail({
-  incidentId,
-}: {
-  incidentId: string;
-}) {
+export default function IncidentDetail({ incidentId }: { incidentId: string }) {
   const incidentQuery = useQuery(
     orpc.operator.incident.get.queryOptions({
       input: { incidentId },
@@ -48,19 +45,66 @@ export default function IncidentDetail({
   }
 
   if (incidentQuery.isError) {
+    const errorCode = toORPCError(incidentQuery.error).code;
+
+    if (errorCode === "NOT_FOUND") {
+      return (
+        <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6">
+          <EmptyState
+            description="This protected incident does not exist or is no longer available."
+            title="Incident not found"
+          />
+          <Button
+            className="mt-5 min-h-11"
+            render={<Link to="/dashboard" />}
+            variant="outline"
+          >
+            Return to dashboard
+          </Button>
+        </main>
+      );
+    }
+
+    if (errorCode === "FORBIDDEN" || errorCode === "UNAUTHORIZED") {
+      return (
+        <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6">
+          <EmptyState
+            description="Your account is not authorized to view protected incident data. Ask an administrator to verify your operator access."
+            title="Operator access unavailable"
+          />
+          <Button
+            className="mt-5 min-h-11"
+            render={<Link to="/" />}
+            variant="outline"
+          >
+            Return home
+          </Button>
+        </main>
+      );
+    }
+
     return (
       <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6">
         <EmptyState
-          description="The incident was not found, your operator access is unavailable, or the service could not load it."
-          title="Incident unavailable"
+          description="The service could not load this incident. Check your connection and retry."
+          title="Incident could not be loaded"
         />
-        <Button
-          className="mt-5 min-h-11"
-          render={<Link to="/dashboard" />}
-          variant="outline"
-        >
-          Return to dashboard
-        </Button>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Button
+            className="min-h-11"
+            disabled={incidentQuery.isFetching}
+            onClick={() => incidentQuery.refetch()}
+          >
+            {incidentQuery.isFetching ? "Retrying…" : "Retry loading incident"}
+          </Button>
+          <Button
+            className="min-h-11"
+            render={<Link to="/dashboard" />}
+            variant="outline"
+          >
+            Return to dashboard
+          </Button>
+        </div>
       </main>
     );
   }
@@ -97,10 +141,10 @@ export default function IncidentDetail({
               aria-labelledby="raw-report-heading"
               className="rounded-xl border bg-card p-5 sm:p-6"
             >
-              <h2 className="text-xl font-semibold" id="raw-report-heading">
+              <h2 className="font-semibold text-xl" id="raw-report-heading">
                 Original report
               </h2>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              <p className="mt-2 text-muted-foreground text-sm leading-6">
                 Restricted source text. Treat it as unverified and render it
                 only as plain text.
               </p>
@@ -124,10 +168,13 @@ export default function IncidentDetail({
               className="rounded-xl border bg-card p-5 sm:p-6"
             >
               <div className="mb-6">
-                <h2 className="text-xl font-semibold" id="reviewed-facts-heading">
+                <h2
+                  className="font-semibold text-xl"
+                  id="reviewed-facts-heading"
+                >
                   Reviewed facts
                 </h2>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                <p className="mt-2 text-muted-foreground text-sm leading-6">
                   These fields are editable operator judgments. Saving does not
                   verify the report.
                 </p>

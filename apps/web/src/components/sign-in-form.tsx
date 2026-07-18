@@ -11,7 +11,11 @@ import { authClient } from "@/lib/auth-client";
 
 import Loader from "./loader";
 
-export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) {
+export default function SignInForm({
+  onSwitchToSignUp,
+}: {
+  onSwitchToSignUp: () => void;
+}) {
   const navigate = useNavigate();
   const { isPending } = authClient.useSession();
   const [authError, setAuthError] = useState<string | null>(null);
@@ -58,14 +62,14 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
 
   return (
     <div className="w-full rounded-xl border bg-card p-5 shadow-sm sm:p-7">
-      <h1 className="mb-2 text-center text-3xl font-bold">Operator sign in</h1>
+      <h1 className="mb-2 text-center font-bold text-3xl">Operator sign in</h1>
       <p className="mb-6 text-center text-muted-foreground">
         Access is limited to approved operator accounts.
       </p>
 
       {authError ? (
         <p
-          className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+          className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-destructive text-sm"
           role="alert"
         >
           {authError}
@@ -96,7 +100,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
                   onChange={(e) => field.handleChange(e.target.value)}
                 />
                 {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-sm text-destructive">
+                  <p key={error?.message} className="text-destructive text-sm">
                     {error?.message}
                   </p>
                 ))}
@@ -121,7 +125,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
                   onChange={(e) => field.handleChange(e.target.value)}
                 />
                 {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-sm text-destructive">
+                  <p key={error?.message} className="text-destructive text-sm">
                     {error?.message}
                   </p>
                 ))}
@@ -131,7 +135,10 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
         </div>
 
         <form.Subscribe
-          selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}
+          selector={(state) => ({
+            canSubmit: state.canSubmit,
+            isSubmitting: state.isSubmitting,
+          })}
         >
           {({ canSubmit, isSubmitting }) => (
             <Button

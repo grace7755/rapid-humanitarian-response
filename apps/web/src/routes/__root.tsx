@@ -1,16 +1,17 @@
-import type { AppRouterClient } from "@my-better-t-app/api/routers/index";
 import { Toaster } from "@my-better-t-app/ui/components/sonner";
-import { createORPCClient } from "@orpc/client";
-import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { HeadContent, Outlet, createRootRouteWithContext } from "@tanstack/react-router";
+import {
+  createRootRouteWithContext,
+  HeadContent,
+  Outlet,
+  useRouterState,
+} from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { useState } from "react";
 
 import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
-import { link, orpc } from "@/utils/orpc";
+import type { orpc } from "@/utils/orpc";
 
 import "../index.css";
 
@@ -41,8 +42,10 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 });
 
 function RootComponent() {
-  const [client] = useState<AppRouterClient>(() => createORPCClient(link));
-  const [orpcUtils] = useState(() => createTanstackQueryUtils(client));
+  const isProtectedRoute = useRouterState({
+    select: (state) =>
+      state.matches.some((match) => match.routeId === "/_auth"),
+  });
 
   return (
     <>
@@ -53,8 +56,12 @@ function RootComponent() {
         disableTransitionOnChange
         storageKey="vite-ui-theme"
       >
-        <div className="grid grid-rows-[auto_1fr] h-svh">
-          <Header />
+        <div
+          className={
+            isProtectedRoute ? "h-svh" : "grid h-svh grid-rows-[auto_1fr]"
+          }
+        >
+          {isProtectedRoute ? null : <Header />}
           <Outlet />
         </div>
         <Toaster richColors />

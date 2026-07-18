@@ -1,6 +1,11 @@
 import { Button } from "@my-better-t-app/ui/components/button";
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { ArrowRight, CheckCircle2, ClipboardCheck, FileText } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  ArrowRight,
+  CheckCircle2,
+  ClipboardCheck,
+  FileText,
+} from "lucide-react";
 
 import PrototypeBanner from "@/components/prototype-banner";
 
@@ -36,13 +41,13 @@ function HomeRoute() {
       <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
         <section className="grid gap-8 border-b pb-12 lg:grid-cols-[1.35fr_0.65fr] lg:items-center">
           <div>
-            <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-primary">
+            <p className="mb-3 font-semibold text-primary text-sm uppercase tracking-wide">
               Bangladesh · Chattogram Division pilot
             </p>
-            <h1 className="max-w-4xl text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+            <h1 className="max-w-4xl font-bold text-4xl tracking-tight sm:text-5xl lg:text-6xl">
               Turn incident reports into safer coordination work.
             </h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
+            <p className="mt-5 max-w-2xl text-lg text-muted-foreground leading-8">
               Rapid Humanitarian Response helps trained operators structure
               anonymous reports, review public evidence, and prepare manual
               outreach. It does not verify truth or dispatch assistance.
@@ -68,18 +73,20 @@ function HomeRoute() {
           </div>
 
           <aside className="rounded-2xl border bg-card p-6 shadow-sm">
-            <h2 className="text-xl font-semibold">Pilot limits</h2>
-            <ul className="mt-4 space-y-3 text-sm leading-6 text-muted-foreground">
+            <h2 className="font-semibold text-xl">Pilot limits</h2>
+            <ul className="mt-4 space-y-3 text-muted-foreground text-sm leading-6">
               <li>English-language demonstration only.</li>
               <li>Covers Bangladesh reports in Chattogram Division.</li>
               <li>No names, phone numbers, media, or exact homes collected.</li>
-              <li>All organization contact remains a manual operator action.</li>
+              <li>
+                All organization contact remains a manual operator action.
+              </li>
             </ul>
           </aside>
         </section>
 
         <section className="py-12" aria-labelledby="how-it-works">
-          <h2 className="text-3xl font-bold" id="how-it-works">
+          <h2 className="font-bold text-3xl" id="how-it-works">
             How the prototype works
           </h2>
           <div className="mt-7 grid gap-4 md:grid-cols-3">
@@ -89,12 +96,12 @@ function HomeRoute() {
                   <span className="flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <Icon aria-hidden="true" className="size-5" />
                   </span>
-                  <p className="text-sm font-medium text-muted-foreground">
+                  <p className="font-medium text-muted-foreground text-sm">
                     Step {index + 1}
                   </p>
                 </div>
-                <h3 className="mt-4 text-xl font-semibold">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                <h3 className="mt-4 font-semibold text-xl">{title}</h3>
+                <p className="mt-2 text-muted-foreground text-sm leading-6">
                   {description}
                 </p>
               </article>
@@ -103,8 +110,8 @@ function HomeRoute() {
         </section>
 
         <section className="rounded-2xl bg-muted p-6 sm:p-8">
-          <h2 className="text-2xl font-bold">Built for careful review</h2>
-          <p className="mt-3 max-w-3xl leading-7 text-muted-foreground">
+          <h2 className="font-bold text-2xl">Built for careful review</h2>
+          <p className="mt-3 max-w-3xl text-muted-foreground leading-7">
             Confidence and urgency stay separate, automation cannot approve
             facts, and no contact is sent automatically. Review the approved
             roadmap and product contract for the complete safety boundaries.

@@ -1,5 +1,6 @@
-import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
+import { OperatorHeader } from "@/components/header";
 import { authClient } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/_auth")({
@@ -16,5 +17,13 @@ export const Route = createFileRoute("/_auth")({
 });
 
 function AuthLayout() {
-  return <Outlet />;
+  const { session } = Route.useRouteContext();
+  if (!session.data) return null;
+
+  return (
+    <div className="grid h-full grid-rows-[auto_1fr]">
+      <OperatorHeader session={session.data} />
+      <Outlet />
+    </div>
+  );
 }

@@ -93,7 +93,7 @@ export default function IncidentStatus({
   return (
     <aside className="space-y-5 rounded-xl border bg-card p-5 lg:sticky lg:top-4">
       <div>
-        <p className="text-sm font-medium text-muted-foreground">Case state</p>
+        <p className="font-medium text-muted-foreground text-sm">Case state</p>
         <StatusBadge className="mt-2 capitalize" status={incident.state} />
       </div>
 
@@ -103,14 +103,14 @@ export default function IncidentStatus({
       </div>
 
       <div>
-        <p className="text-sm font-semibold">Current operator action</p>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+        <p className="font-semibold text-sm">Current operator action</p>
+        <p className="mt-2 text-muted-foreground text-sm leading-6">
           {currentAction(incident.state)}
         </p>
       </div>
 
       <div>
-        <p className="text-sm font-medium text-muted-foreground">
+        <p className="font-medium text-muted-foreground text-sm">
           Extraction status
         </p>
         <StatusBadge
@@ -132,7 +132,7 @@ export default function IncidentStatus({
 
       {nextStateOptions[incident.state].length > 0 ? (
         <div className="space-y-2 border-t pt-4">
-          <p className="text-sm font-semibold">Change case state</p>
+          <p className="font-semibold text-sm">Change case state</p>
           {nextStateOptions[incident.state].map((state) => (
             <Button
               className="min-h-11 w-full capitalize"
@@ -148,11 +148,11 @@ export default function IncidentStatus({
       ) : null}
 
       {stateError ? (
-        <p className="text-sm text-destructive" role="alert">
+        <p className="text-destructive text-sm" role="alert">
           {stateError}
         </p>
       ) : null}
-      <p aria-live="polite" className="text-sm text-muted-foreground">
+      <p aria-live="polite" className="text-muted-foreground text-sm">
         {isChanging ? "Updating incident state." : ""}
       </p>
     </aside>

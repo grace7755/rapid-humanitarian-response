@@ -1,5 +1,5 @@
 import { Button } from "@my-better-t-app/ui/components/button";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 
 import PageHeader from "@/components/page-header";
 import PrototypeBanner from "@/components/prototype-banner";
@@ -22,12 +22,12 @@ function ReportSuccessRoute() {
             title="Thank you for reporting carefully"
           />
           <div className="rounded-lg bg-muted p-4">
-            <p className="text-sm text-muted-foreground">Reference</p>
-            <p className="mt-1 break-all font-mono text-lg font-semibold">
+            <p className="text-muted-foreground text-sm">Reference</p>
+            <p className="mt-1 break-all font-mono font-semibold text-lg">
               {reference}
             </p>
           </div>
-          <p className="text-sm leading-6 text-muted-foreground">
+          <p className="text-muted-foreground text-sm leading-6">
             Keep this reference for your records. This prototype does not
             provide public incident tracking or expose report details.
           </p>

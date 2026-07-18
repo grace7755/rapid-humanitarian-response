@@ -11,12 +11,7 @@ import { Label } from "@my-better-t-app/ui/components/label";
 import { Textarea } from "@my-better-t-app/ui/components/textarea";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  type FormEvent,
-  useCallback,
-  useRef,
-  useState,
-} from "react";
+import { type FormEvent, useCallback, useRef, useState } from "react";
 
 import ErrorSummary from "@/components/error-summary";
 import { orpc } from "@/utils/orpc";
@@ -62,8 +57,11 @@ export default function IncidentForm() {
   const [values, setValues] = useState(initialValues);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
-  const reportMutation = useMutation(orpc.public.report.create.mutationOptions());
+  const reportMutation = useMutation(
+    orpc.public.report.create.mutationOptions(),
+  );
 
   const setValue = <Key extends keyof FormValues>(
     key: Key,
@@ -80,6 +78,14 @@ export default function IncidentForm() {
 
   const setTurnstileToken = useCallback((token: string) => {
     setValues((current) => ({ ...current, turnstileToken: token }));
+    if (token) {
+      setFieldErrors((current) => {
+        if (!current.turnstileToken) return current;
+        const next = { ...current };
+        delete next.turnstileToken;
+        return next;
+      });
+    }
   }, []);
 
   const focusErrors = () => {
@@ -124,6 +130,12 @@ export default function IncidentForm() {
         to: "/report/success/$reference",
       });
     } catch {
+      setValues((current) => ({ ...current, turnstileToken: "" }));
+      setFieldErrors((current) => ({
+        ...current,
+        turnstileToken: "Complete human verification again before retrying.",
+      }));
+      setTurnstileResetKey((current) => current + 1);
       setSubmissionError(
         "The report could not be submitted. Your entries are still here; please retry.",
       );
@@ -146,11 +158,14 @@ export default function IncidentForm() {
       <ErrorSummary errors={summaryErrors} ref={errorSummaryRef} />
 
       <fieldset className="space-y-5 rounded-xl border bg-card p-4 sm:p-6">
-        <legend className="px-2 text-xl font-semibold">1. What happened</legend>
+        <legend className="px-2 font-semibold text-xl">1. What happened</legend>
 
         <div className="space-y-2">
           <Label htmlFor="incidentType">Incident type (required)</Label>
           <select
+            aria-describedby={
+              fieldErrors.incidentType ? "incidentType-error" : undefined
+            }
             aria-invalid={Boolean(fieldErrors.incidentType)}
             className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-base"
             id="incidentType"
@@ -165,16 +180,25 @@ export default function IncidentForm() {
             ))}
           </select>
           {fieldErrors.incidentType ? (
-            <p className="text-sm text-destructive">{fieldErrors.incidentType}</p>
+            <p className="text-destructive text-sm" id="incidentType-error">
+              {fieldErrors.incidentType}
+            </p>
           ) : null}
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="description">Incident description (required)</Label>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm" id="description-hint">
             Use 40–2,000 characters and describe only what was reported.
           </p>
           <Textarea
+            aria-describedby={[
+              "description-hint",
+              "description-count",
+              fieldErrors.description ? "description-error" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             aria-invalid={Boolean(fieldErrors.description)}
             className="min-h-36 text-base"
             id="description"
@@ -182,22 +206,29 @@ export default function IncidentForm() {
             onChange={(event) => setValue("description", event.target.value)}
             value={values.description}
           />
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm" id="description-count">
             {values.description.length}/2,000 characters
           </p>
           {fieldErrors.description ? (
-            <p className="text-sm text-destructive">{fieldErrors.description}</p>
+            <p className="text-destructive text-sm" id="description-error">
+              {fieldErrors.description}
+            </p>
           ) : null}
         </div>
       </fieldset>
 
       <fieldset className="space-y-5 rounded-xl border bg-card p-4 sm:p-6">
-        <legend className="px-2 text-xl font-semibold">2. Where and when</legend>
+        <legend className="px-2 font-semibold text-xl">
+          2. Where and when
+        </legend>
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="district">District or area (required)</Label>
             <select
+              aria-describedby={
+                fieldErrors.district ? "district-error" : undefined
+              }
               aria-invalid={Boolean(fieldErrors.district)}
               className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-base"
               id="district"
@@ -212,13 +243,20 @@ export default function IncidentForm() {
               ))}
             </select>
             {fieldErrors.district ? (
-              <p className="text-sm text-destructive">{fieldErrors.district}</p>
+              <p className="text-destructive text-sm" id="district-error">
+                {fieldErrors.district}
+              </p>
             ) : null}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="timeDescription">Time description (required)</Label>
             <Input
+              aria-describedby={
+                fieldErrors.timeDescription
+                  ? "timeDescription-error"
+                  : undefined
+              }
               aria-invalid={Boolean(fieldErrors.timeDescription)}
               className="min-h-11 text-base"
               id="timeDescription"
@@ -229,7 +267,10 @@ export default function IncidentForm() {
               value={values.timeDescription}
             />
             {fieldErrors.timeDescription ? (
-              <p className="text-sm text-destructive">
+              <p
+                className="text-destructive text-sm"
+                id="timeDescription-error"
+              >
                 {fieldErrors.timeDescription}
               </p>
             ) : null}
@@ -241,6 +282,11 @@ export default function IncidentForm() {
             Approximate location (required)
           </Label>
           <Input
+            aria-describedby={
+              fieldErrors.locationDescription
+                ? "locationDescription-error"
+                : undefined
+            }
             aria-invalid={Boolean(fieldErrors.locationDescription)}
             className="min-h-11 text-base"
             id="locationDescription"
@@ -251,7 +297,10 @@ export default function IncidentForm() {
             value={values.locationDescription}
           />
           {fieldErrors.locationDescription ? (
-            <p className="text-sm text-destructive">
+            <p
+              className="text-destructive text-sm"
+              id="locationDescription-error"
+            >
               {fieldErrors.locationDescription}
             </p>
           ) : null}
@@ -263,10 +312,16 @@ export default function IncidentForm() {
               Estimated affected population (optional)
             </Label>
             <Input
+              aria-describedby={
+                fieldErrors.affectedEstimate
+                  ? "affectedEstimate-error"
+                  : undefined
+              }
               aria-invalid={Boolean(fieldErrors.affectedEstimate)}
               className="min-h-11 text-base"
               id="affectedEstimate"
               inputMode="numeric"
+              max="2147483647"
               min="0"
               onChange={(event) =>
                 setValue("affectedEstimate", event.target.value)
@@ -276,7 +331,10 @@ export default function IncidentForm() {
               value={values.affectedEstimate}
             />
             {fieldErrors.affectedEstimate ? (
-              <p className="text-sm text-destructive">
+              <p
+                className="text-destructive text-sm"
+                id="affectedEstimate-error"
+              >
                 {fieldErrors.affectedEstimate}
               </p>
             ) : null}
@@ -285,6 +343,9 @@ export default function IncidentForm() {
           <div className="space-y-2">
             <Label htmlFor="sourceUrl">Public source URL (optional)</Label>
             <Input
+              aria-describedby={
+                fieldErrors.sourceUrl ? "sourceUrl-error" : undefined
+              }
               aria-invalid={Boolean(fieldErrors.sourceUrl)}
               className="min-h-11 text-base"
               id="sourceUrl"
@@ -294,19 +355,26 @@ export default function IncidentForm() {
               value={values.sourceUrl}
             />
             {fieldErrors.sourceUrl ? (
-              <p className="text-sm text-destructive">{fieldErrors.sourceUrl}</p>
+              <p className="text-destructive text-sm" id="sourceUrl-error">
+                {fieldErrors.sourceUrl}
+              </p>
             ) : null}
           </div>
         </div>
       </fieldset>
 
       <fieldset className="space-y-5 rounded-xl border bg-card p-4 sm:p-6">
-        <legend className="px-2 text-xl font-semibold">
+        <legend className="px-2 font-semibold text-xl">
           3. Needs and submission check
         </legend>
 
-        <div className="space-y-3">
-          <p className="font-medium">Reported needs (select at least one)</p>
+        <fieldset
+          aria-describedby={fieldErrors.needs ? "needs-error" : undefined}
+          className="space-y-3"
+        >
+          <legend className="font-medium" id="needs">
+            Reported needs (select at least one)
+          </legend>
           <div className="grid gap-2 sm:grid-cols-2">
             {INCIDENT_NEEDS.map((need) => (
               <label
@@ -316,6 +384,7 @@ export default function IncidentForm() {
                 <input
                   checked={values.needs.includes(need)}
                   className="size-5"
+                  name="needs"
                   onChange={(event) =>
                     setValue(
                       "needs",
@@ -325,17 +394,20 @@ export default function IncidentForm() {
                     )
                   }
                   type="checkbox"
+                  value={need}
                 />
                 <span>{displayLabel(need)}</span>
               </label>
             ))}
           </div>
           {fieldErrors.needs ? (
-            <p className="text-sm text-destructive">{fieldErrors.needs}</p>
+            <p className="text-destructive text-sm" id="needs-error">
+              {fieldErrors.needs}
+            </p>
           ) : null}
-        </div>
+        </fieldset>
 
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950 text-sm leading-6 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
           Do not include names, identity documents, phone numbers, private
           medical details, faces, or exact household locations. Use an
           approximate area when possible.
@@ -343,6 +415,11 @@ export default function IncidentForm() {
 
         <label className="flex min-h-11 cursor-pointer items-start gap-3">
           <input
+            aria-describedby={
+              fieldErrors.dataNoticeAccepted
+                ? "dataNoticeAccepted-error"
+                : undefined
+            }
             aria-invalid={Boolean(fieldErrors.dataNoticeAccepted)}
             checked={values.dataNoticeAccepted}
             className="mt-1 size-5"
@@ -358,14 +435,14 @@ export default function IncidentForm() {
           </span>
         </label>
         {fieldErrors.dataNoticeAccepted ? (
-          <p className="text-sm text-destructive">
+          <p className="text-destructive text-sm" id="dataNoticeAccepted-error">
             {fieldErrors.dataNoticeAccepted}
           </p>
         ) : null}
 
         <div
           aria-hidden="true"
-          className="absolute left-[-10000px] top-auto h-px w-px overflow-hidden"
+          className="absolute top-auto left-[-10000px] h-px w-px overflow-hidden"
         >
           <Label htmlFor="website">Website</Label>
           <Input
@@ -380,17 +457,24 @@ export default function IncidentForm() {
         {env.VITE_TURNSTILE_SITE_KEY ? (
           <div id="turnstileToken">
             <TurnstileWidget
+              errorId={
+                fieldErrors.turnstileToken ? "turnstileToken-error" : undefined
+              }
               onTokenChange={setTurnstileToken}
+              resetKey={turnstileResetKey}
               siteKey={env.VITE_TURNSTILE_SITE_KEY}
             />
             {fieldErrors.turnstileToken ? (
-              <p className="mt-2 text-sm text-destructive">
+              <p
+                className="mt-2 text-destructive text-sm"
+                id="turnstileToken-error"
+              >
                 Complete the human verification before submitting.
               </p>
             ) : null}
           </div>
         ) : (
-          <p className="text-sm text-destructive" id="turnstileToken">
+          <p className="text-destructive text-sm" id="turnstileToken">
             Human verification is not configured. The report cannot be
             submitted.
           </p>
@@ -404,7 +488,7 @@ export default function IncidentForm() {
         >
           {reportMutation.isPending ? "Submitting report…" : "Submit report"}
         </Button>
-        <p aria-live="polite" className="text-sm text-muted-foreground">
+        <p aria-live="polite" className="text-muted-foreground text-sm">
           {reportMutation.isPending
             ? "Checking and securely storing your report."
             : "Submission does not guarantee contact, aid, or response."}

@@ -21,14 +21,18 @@ declare global {
 }
 
 type TurnstileWidgetProps = {
+  errorId?: string;
   onTokenChange: (token: string) => void;
+  resetKey: number;
   siteKey: string;
 };
 
 const SCRIPT_ID = "cloudflare-turnstile-script";
 
 export default function TurnstileWidget({
+  errorId,
   onTokenChange,
+  resetKey,
   siteKey,
 }: TurnstileWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -36,14 +40,12 @@ export default function TurnstileWidget({
   useEffect(() => {
     let widgetId: string | undefined;
     let cancelled = false;
+    if (containerRef.current) {
+      containerRef.current.dataset.resetKey = String(resetKey);
+    }
 
     const render = () => {
-      if (
-        cancelled ||
-        widgetId ||
-        !containerRef.current ||
-        !window.turnstile
-      ) {
+      if (cancelled || widgetId || !containerRef.current || !window.turnstile) {
         return;
       }
       widgetId = window.turnstile.render(containerRef.current, {
@@ -75,7 +77,12 @@ export default function TurnstileWidget({
       existingScript?.removeEventListener("load", render);
       if (widgetId && window.turnstile) window.turnstile.remove(widgetId);
     };
-  }, [onTokenChange, siteKey]);
+  }, [onTokenChange, resetKey, siteKey]);
 
-  return <div aria-label="Human verification" ref={containerRef} />;
+  return (
+    <fieldset aria-describedby={errorId}>
+      <legend className="sr-only">Human verification</legend>
+      <div ref={containerRef} />
+    </fieldset>
+  );
 }

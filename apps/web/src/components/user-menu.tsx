@@ -8,28 +8,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@my-better-t-app/ui/components/dropdown-menu";
-import { Skeleton } from "@my-better-t-app/ui/components/skeleton";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 
 import { authClient } from "@/lib/auth-client";
 
-export default function UserMenu() {
+export type OperatorSession = NonNullable<
+  Awaited<ReturnType<typeof authClient.getSession>>["data"]
+>;
+
+export default function UserMenu({ session }: { session: OperatorSession }) {
   const navigate = useNavigate();
-  const { data: session, isPending } = authClient.useSession();
-
-  if (isPending) {
-    return <Skeleton className="h-9 w-24" />;
-  }
-
-  if (!session) {
-    return (
-      <Link to="/sign-in">
-        <Button className="min-h-11" variant="outline">
-          Sign in
-        </Button>
-      </Link>
-    );
-  }
 
   return (
     <DropdownMenu>
