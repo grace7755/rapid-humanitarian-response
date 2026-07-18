@@ -42,6 +42,9 @@ const runtimeEnv = {
 };
 
 export const env = createEnv({
+  // Keep Vercel's function compiler from widening the omitted prefix to string.
+  clientPrefix: "",
+  client: {},
   server: {
     DATABASE_URL: z.string().min(1),
     BETTER_AUTH_SECRET: z.string().min(32),
