@@ -1,14 +1,13 @@
 {
   "name": "server",
   "type": "module",
-  "main": "dist/index.mjs",
   "scripts": {
     "build": "tsdown",
     "postbuild": "bun ../../scripts/check-production-exports.ts",
     "check-types": "tsc -b",
     "compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
-    "dev": "bun run --hot src/index.ts",
-    "test": "bun test src/index.test.ts",
+    "dev": "bun --conditions=development run --hot src/index.ts",
+    "test": "bun test --conditions=development src/index.test.ts",
     "start": "bun run dist/index.mjs"
   },
   "dependencies": {

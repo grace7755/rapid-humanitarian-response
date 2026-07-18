@@ -70,21 +70,24 @@ export const env = createEnv({
   runtimeEnv: runtimeEnv,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
   emptyStringAsUndefined: true,
-});
-
-if (env.NODE_ENV === "production") {
-  const missingVariables = [
-    env.OPERATOR_EMAIL_ALLOWLIST.length === 0
-      ? "OPERATOR_EMAIL_ALLOWLIST"
-      : undefined,
-    !env.OPENROUTER_API_KEY ? "OPENROUTER_API_KEY" : undefined,
-    !env.OPENROUTER_MODEL ? "OPENROUTER_MODEL" : undefined,
-    !env.TURNSTILE_SECRET_KEY ? "TURNSTILE_SECRET_KEY" : undefined,
-  ].filter((value): value is string => value !== undefined);
-
-  if (missingVariables.length > 0) {
-    throw new Error(
-      `Missing required production environment variables: ${missingVariables.join(", ")}`,
+  onValidationError: (issues) => {
+    const invalidVariables = issues.map(
+      (issue) =>
+        issue.path
+          ?.map((segment) =>
+            typeof segment === "object" &&
+            segment !== null &&
+            "key" in segment
+              ? String(segment.key)
+              : String(segment),
+          )
+          .join(".") ?? "unknown",
     );
-  }
-}
+    const error = new Error(
+      `Invalid server environment variables: ${invalidVariables.join(", ")}`,
+      { cause: issues },
+    );
+    console.error("[server] Startup environment validation failed", error);
+    throw error;
+  },
+});

@@ -7,14 +7,14 @@
     "./server": {
       "types": "./src/server.ts",
       "development": "./src/server.ts",
-      "bun": "./src/server.ts",
+      "bun": "./dist/server.js",
       "import": "./dist/server.js",
       "default": "./dist/server.js"
     },
     "./web": {
       "types": "./src/web.ts",
       "development": "./src/web.ts",
-      "bun": "./src/web.ts",
+      "bun": "./dist/web.js",
       "import": "./dist/web.js",
       "default": "./dist/web.js"
     }

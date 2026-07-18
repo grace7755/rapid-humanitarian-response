@@ -39,6 +39,8 @@ app.use(
   }),
 );
 
+app.get("/", (c) => c.text("Rapid Humanitarian Response API running"));
+
 app.use(
   "/rpc/*",
   bodyLimit({
@@ -131,10 +133,6 @@ app.use("/*", async (c, next) => {
   }
 
   await next();
-});
-
-app.get("/", (c) => {
-  return c.text("OK");
 });
 
 app.notFound((c) => {

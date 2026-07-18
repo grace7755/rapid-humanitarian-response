@@ -8,14 +8,14 @@
     ".": {
       "types": "./src/index.ts",
       "development": "./src/index.ts",
-      "bun": "./src/index.ts",
+      "bun": "./dist/index.js",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./*": {
       "types": "./src/*.ts",
       "development": "./src/*.ts",
-      "bun": "./src/*.ts",
+      "bun": "./dist/*.js",
       "import": "./dist/*.js",
       "default": "./dist/*.js"
     }
@@ -27,7 +27,7 @@
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "bun --env-file=../../apps/server/.env run src/seed/index.ts"
+    "db:seed": "bun --conditions=development --env-file=../../apps/server/.env run src/seed/index.ts"
   },
   "dependencies": {
     "@my-better-t-app/env": "workspace:*",

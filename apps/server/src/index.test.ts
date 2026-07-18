@@ -11,6 +11,17 @@ const errorResponseSchema = z.object({
 });
 
 describe("Hono transport boundary", () => {
+  it("serves the public health endpoint without credentials", async () => {
+    const response = await app.request("/", {
+      method: "GET",
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe(
+      "Rapid Humanitarian Response API running",
+    );
+  });
+
   it("rejects oversized RPC bodies with a safe response and request ID", async () => {
     const response = await app.request("/rpc/public/report/create", {
       body: "x".repeat(65 * 1024),
