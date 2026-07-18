@@ -4,10 +4,10 @@ import { env } from "@my-better-t-app/env/server";
 import {
   publicReportInputSchema,
   publicReportOutputSchema,
-} from "../../domain/reports/schema";
-import { publicProcedure } from "../../index";
-import { createPublicReport } from "../../services/reports";
-import { verifyTurnstileToken } from "../../services/turnstile";
+} from "../../domain/reports/schema.js";
+import { publicProcedure } from "../../index.js";
+import { createPublicReport } from "../../services/reports.js";
+import { verifyTurnstileToken } from "../../services/turnstile.js";
 
 export const reportRouter = {
   create: publicProcedure

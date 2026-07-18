@@ -8,7 +8,7 @@ import { createAuthMiddleware } from "better-auth/api";
 import {
   getEmailFromRequestBody,
   requireAllowlistedOperatorEmail,
-} from "./allowlist";
+} from "./allowlist.js";
 
 export function createAuth() {
   const db = createDb();

@@ -1,9 +1,10 @@
 {
   "name": "server",
   "type": "module",
-  "main": "src/index.ts",
+  "main": "dist/index.mjs",
   "scripts": {
     "build": "tsdown",
+    "postbuild": "bun ../../scripts/check-production-exports.ts",
     "check-types": "tsc -b",
     "compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
     "dev": "bun run --hot src/index.ts",

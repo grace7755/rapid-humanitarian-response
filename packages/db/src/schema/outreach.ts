@@ -9,9 +9,9 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { user } from "./auth";
-import { incidents } from "./incidents";
-import { organizations } from "./organizations";
+import { user } from "./auth.js";
+import { incidents } from "./incidents.js";
+import { organizations } from "./organizations.js";
 
 export const outreachDrafts = pgTable(
   "outreach_drafts",

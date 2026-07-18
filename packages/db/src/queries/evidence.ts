@@ -1,7 +1,7 @@
 import { and, asc, eq } from "drizzle-orm";
 
-import { db } from "../index";
-import { evidence, type NewEvidence } from "../schema";
+import { db } from "../index.js";
+import { evidence, type NewEvidence } from "../schema/index.js";
 
 export function derivePublisherDomain(url: string) {
   const parsedUrl = new URL(url);

@@ -1,5 +1,5 @@
-import { reportRouter } from "./report";
-import { systemRouter } from "./system";
+import { reportRouter } from "./report.js";
+import { systemRouter } from "./system.js";
 
 export const publicRouter = {
   report: reportRouter,

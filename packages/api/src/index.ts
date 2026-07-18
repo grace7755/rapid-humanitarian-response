@@ -1,7 +1,7 @@
-import { requireOperator } from "./middleware/operator";
-import { o } from "./procedure";
+import { requireOperator } from "./middleware/operator.js";
+import { o } from "./procedure.js";
 
-export { o } from "./procedure";
+export { o } from "./procedure.js";
 
 export const publicProcedure = o;
 

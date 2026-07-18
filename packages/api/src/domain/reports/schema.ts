@@ -6,7 +6,7 @@ import {
   PILOT_COUNTRY,
   PILOT_DISTRICTS,
   PILOT_DIVISION,
-} from "../incidents/constants";
+} from "../incidents/constants.js";
 
 const publicHttpUrlSchema = z
   .url("Enter a valid public URL.")

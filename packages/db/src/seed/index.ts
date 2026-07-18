@@ -1,6 +1,6 @@
-import { db } from "../index";
-import { organizations } from "../schema";
-import { DEMO_ORGANIZATIONS } from "./organizations";
+import { db } from "../index.js";
+import { organizations } from "../schema/index.js";
+import { DEMO_ORGANIZATIONS } from "./organizations.js";
 
 export async function seedDemoOrganizations() {
   for (const organization of DEMO_ORGANIZATIONS) {

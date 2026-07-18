@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
-import { db } from "../index";
-import { user } from "../schema";
+import { db } from "../index.js";
+import { user } from "../schema/index.js";
 
 export async function getUserById(userId: string) {
   const [record] = await db

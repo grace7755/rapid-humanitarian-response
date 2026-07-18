@@ -4,8 +4,24 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./server": "./src/server.ts",
-    "./web": "./src/web.ts"
+    "./server": {
+      "types": "./src/server.ts",
+      "development": "./src/server.ts",
+      "bun": "./src/server.ts",
+      "import": "./dist/server.js",
+      "default": "./dist/server.js"
+    },
+    "./web": {
+      "types": "./src/web.ts",
+      "development": "./src/web.ts",
+      "bun": "./src/web.ts",
+      "import": "./dist/web.js",
+      "default": "./dist/web.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@t3-oss/env-core": "^0.13.11",
@@ -13,9 +29,9 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-  "@my-better-t-app/config": "workspace:*",
-  "@types/bun": "catalog:",
-  "@types/node": "catalog:",
-  "typescript": "catalog:"
-}
+    "@my-better-t-app/config": "workspace:*",
+    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
 }

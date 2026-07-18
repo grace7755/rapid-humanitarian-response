@@ -5,5 +5,7 @@ export default defineConfig({
   format: "esm",
   outDir: "./dist",
   clean: true,
-  noExternal: [/@my-better-t-app\/.*/],
+  deps: {
+    alwaysBundle: [/@my-better-t-app\/.*/],
+  },
 });

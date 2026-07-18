@@ -1,4 +1,4 @@
-import { classifyError } from "../errors";
+import { classifyError } from "../errors.js";
 
 export type SafeLogFields = {
   incidentId?: string;

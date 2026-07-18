@@ -1,7 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 
-import { db } from "../index";
-import { type NewOutreachDraft, outreachDrafts } from "../schema";
+import { db } from "../index.js";
+import { type NewOutreachDraft, outreachDrafts } from "../schema/index.js";
 
 export type UpsertOutreachDraftInput = Omit<
   NewOutreachDraft,

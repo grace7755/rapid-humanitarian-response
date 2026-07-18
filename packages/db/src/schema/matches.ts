@@ -10,8 +10,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { incidents } from "./incidents";
-import { organizations } from "./organizations";
+import { incidents } from "./incidents.js";
+import { organizations } from "./organizations.js";
 
 export const incidentMatches = pgTable(
   "incident_matches",

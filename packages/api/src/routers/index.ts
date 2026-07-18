@@ -1,7 +1,7 @@
 import type { RouterClient } from "@orpc/server";
 
-import { operatorRouter } from "./operator";
-import { publicRouter } from "./public";
+import { operatorRouter } from "./operator/index.js";
+import { publicRouter } from "./public/index.js";
 
 export const appRouter = {
   operator: operatorRouter,

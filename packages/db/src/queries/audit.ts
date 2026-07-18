@@ -1,7 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 
-import { db } from "../index";
-import { auditEvents, type NewAuditEvent } from "../schema";
+import { db } from "../index.js";
+import { auditEvents, type NewAuditEvent } from "../schema/index.js";
 
 export type InsertAuditEvent = Omit<NewAuditEvent, "createdAt" | "id">;
 

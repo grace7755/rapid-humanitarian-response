@@ -12,7 +12,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { user } from "./auth";
+import { user } from "./auth.js";
 
 export type IncidentRiskFlags = {
   accessBlocked: boolean;

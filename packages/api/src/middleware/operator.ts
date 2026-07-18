@@ -1,10 +1,9 @@
+import { isOperatorEmailAllowlisted } from "@my-better-t-app/auth/allowlist";
 import { getUserById } from "@my-better-t-app/db/queries/users";
 import { env } from "@my-better-t-app/env/server";
 import { ORPCError } from "@orpc/server";
 
-import { isOperatorEmailAllowlisted } from "@my-better-t-app/auth/allowlist";
-
-import { o } from "../procedure";
+import { o } from "../procedure.js";
 
 export type OperatorSession = {
   user: {

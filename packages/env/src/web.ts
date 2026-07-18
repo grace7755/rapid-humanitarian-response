@@ -14,7 +14,7 @@ const booleanString = z
   .transform((value) => value === "true");
 
 const runtimeEnv = (
-  import.meta as ImportMeta & {
+  import.meta as unknown as {
     readonly env: Record<string, boolean | string | undefined>;
   }
 ).env;

@@ -1,7 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 
-import { db } from "../index";
-import { organizations } from "../schema";
+import { db } from "../index.js";
+import { organizations } from "../schema/index.js";
 
 const organizationSelection = {
   id: organizations.id,

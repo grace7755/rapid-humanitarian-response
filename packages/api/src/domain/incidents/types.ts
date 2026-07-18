@@ -14,7 +14,7 @@ import type {
   OUTREACH_STATUSES,
   PILOT_DISTRICTS,
   RISK_FLAG_KEYS,
-} from "./constants";
+} from "./constants.js";
 
 type ArrayValue<T extends readonly unknown[]> = T[number];
 

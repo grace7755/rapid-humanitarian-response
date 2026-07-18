@@ -1,7 +1,7 @@
 import { env } from "@my-better-t-app/env/server";
 import { z } from "zod";
 
-import { publicProcedure } from "../../index";
+import { publicProcedure } from "../../index.js";
 
 const systemStatusOutputSchema = z
   .object({

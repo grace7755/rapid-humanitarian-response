@@ -1,11 +1,11 @@
 import { desc, eq } from "drizzle-orm";
 
-import { db } from "../index";
+import { db } from "../index.js";
 import {
   incidentMatches,
   type NewIncidentMatch,
   organizations,
-} from "../schema";
+} from "../schema/index.js";
 
 export type ReplacementMatch = Pick<
   NewIncidentMatch,

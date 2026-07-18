@@ -15,11 +15,11 @@ import {
   OCCURRENCE_PRECISIONS,
   PILOT_DISTRICTS,
   RISK_FLAG_KEYS,
-} from "../../domain/incidents/constants";
-import { canTransitionIncident } from "../../domain/incidents/state-machine";
-import type { CaseState } from "../../domain/incidents/types";
-import { operatorProcedure } from "../../index";
-import { recordAuditEvent } from "../../services/audit";
+} from "../../domain/incidents/constants.js";
+import { canTransitionIncident } from "../../domain/incidents/state-machine.js";
+import type { CaseState } from "../../domain/incidents/types.js";
+import { operatorProcedure } from "../../index.js";
+import { recordAuditEvent } from "../../services/audit.js";
 
 const riskFlagsSchema = z
   .object(

@@ -1,4 +1,4 @@
-import type { NewOrganization } from "../schema";
+import type { NewOrganization } from "../schema/index.js";
 
 export const DEMO_ORGANIZATIONS = [
   {

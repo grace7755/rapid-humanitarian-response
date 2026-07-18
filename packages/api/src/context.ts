@@ -1,7 +1,7 @@
 import { auth } from "@my-better-t-app/auth";
 import type { Context as HonoContext } from "hono";
 
-import type { SafeRequestLogger } from "./services/logging";
+import type { SafeRequestLogger } from "./services/logging.js";
 
 export type CreateContextOptions = {
   context: HonoContext;

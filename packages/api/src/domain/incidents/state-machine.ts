@@ -1,4 +1,4 @@
-import type { CaseState } from "./types";
+import type { CaseState } from "./types.js";
 
 const ALLOWED_TRANSITIONS = {
   closed: [],

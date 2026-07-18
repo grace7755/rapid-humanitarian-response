@@ -9,8 +9,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { user } from "./auth";
-import { incidents } from "./incidents";
+import { user } from "./auth.js";
+import { incidents } from "./incidents.js";
 
 export const evidence = pgTable(
   "evidence",

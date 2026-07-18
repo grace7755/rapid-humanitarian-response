@@ -1,7 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 
-import { db, neonSql } from "../index";
-import { incidents, type NewIncident } from "../schema";
+import { db, neonSql } from "../index.js";
+import { incidents, type NewIncident } from "../schema/index.js";
 
 export type CreateRawIncidentInput = {
   rawReport: string;

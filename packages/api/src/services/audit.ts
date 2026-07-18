@@ -5,7 +5,7 @@ import {
   AUDIT_EVENT_NAMES,
   CASE_STATES,
   OUTREACH_STATUSES,
-} from "../domain/incidents/constants";
+} from "../domain/incidents/constants.js";
 
 export const auditMetadataSchema = z
   .object({

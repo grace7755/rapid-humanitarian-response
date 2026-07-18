@@ -7,7 +7,7 @@ import { ORPCError } from "@orpc/server";
 import {
   type PublicReportInput,
   rawReportSnapshotSchema,
-} from "../domain/reports/schema";
+} from "../domain/reports/schema.js";
 
 type ReportCreationDependencies = {
   persistRawReport: (
