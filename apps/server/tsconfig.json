@@ -3,6 +3,10 @@
   "compilerOptions": {
     "composite": true,
     "outDir": "dist",
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
     "paths": {
       "@/*": ["./src/*"]
     },
