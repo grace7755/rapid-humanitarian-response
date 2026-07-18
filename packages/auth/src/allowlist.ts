@@ -1,5 +1,13 @@
 import { APIError } from "better-auth/api";
 
+export function getEmailFromRequestBody(body: unknown) {
+  if (typeof body !== "object" || body === null || !("email" in body)) {
+    return undefined;
+  }
+
+  return body.email;
+}
+
 export function normalizeOperatorEmail(email: string) {
   return email.trim().toLowerCase();
 }

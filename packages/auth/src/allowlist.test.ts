@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getEmailFromRequestBody,
   isOperatorEmailAllowlisted,
   normalizeOperatorEmail,
   requireAllowlistedOperatorEmail,
@@ -25,5 +26,13 @@ describe("operator email allowlist", () => {
     expect(() => requireAllowlistedOperatorEmail(undefined, allowlist)).toThrow(
       "not authorized",
     );
+  });
+
+  it("reads email only from object request bodies", () => {
+    expect(getEmailFromRequestBody({ email: "operator@example.org" })).toBe(
+      "operator@example.org",
+    );
+    expect(getEmailFromRequestBody(null)).toBeUndefined();
+    expect(getEmailFromRequestBody("operator@example.org")).toBeUndefined();
   });
 });

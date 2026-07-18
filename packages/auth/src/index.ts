@@ -5,7 +5,10 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
 
-import { requireAllowlistedOperatorEmail } from "./allowlist";
+import {
+  getEmailFromRequestBody,
+  requireAllowlistedOperatorEmail,
+} from "./allowlist";
 
 export function createAuth() {
   const db = createDb();
@@ -26,7 +29,7 @@ export function createAuth() {
         if (context.path !== "/sign-up/email") return;
 
         requireAllowlistedOperatorEmail(
-          context.body?.email,
+          getEmailFromRequestBody(context.body),
           env.OPERATOR_EMAIL_ALLOWLIST,
         );
       }),
