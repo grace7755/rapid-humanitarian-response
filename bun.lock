@@ -149,6 +149,7 @@
       "devDependencies": {
         "@my-better-t-app/config": "workspace:*",
         "@types/bun": "catalog:",
+        "@types/node": "catalog:",
         "typescript": "catalog:",
       },
     },
