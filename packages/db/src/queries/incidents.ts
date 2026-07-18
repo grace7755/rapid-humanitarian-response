@@ -1,7 +1,7 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import { db, neonSql } from "../index.js";
-import { incidents, type NewIncident } from "../schema/index.js";
+import { auditEvents, incidents, type NewIncident } from "../schema/index.js";
 
 export type CreateRawIncidentInput = {
   rawReport: string;
@@ -16,10 +16,7 @@ export type PublicIncidentReceipt = {
 };
 
 function generateIncidentReference() {
-  const randomPart = crypto
-    .randomUUID()
-    .replaceAll("-", "")
-    .toUpperCase();
+  const randomPart = crypto.randomUUID().replaceAll("-", "").toUpperCase();
   return `RHR-${randomPart}`;
 }
 
@@ -155,18 +152,41 @@ export async function updateIncidentReview(
   incidentId: string,
   values: IncidentReviewUpdate,
   reviewerUserId: string,
+  changedFields: string,
 ) {
-  const [updated] = await db
+  const now = new Date();
+  const updateIncident = db
     .update(incidents)
     .set({
       ...values,
       reviewedByUserId: reviewerUserId,
-      reviewedAt: new Date(),
-      updatedAt: new Date(),
+      reviewedAt: now,
+      updatedAt: now,
     })
     .where(eq(incidents.id, incidentId))
     .returning({ id: incidents.id, updatedAt: incidents.updatedAt });
 
+  const insertAuditEvent = db
+    .insert(auditEvents)
+    .select(
+      sql`
+        select
+          gen_random_uuid(),
+          ${incidentId}::uuid,
+          ${reviewerUserId},
+          'incident.edited',
+          ${JSON.stringify({ changedFields })}::jsonb,
+          now()
+        from incidents
+        where id = ${incidentId}::uuid
+          and updated_at = ${now}
+          and reviewed_by_user_id = ${reviewerUserId}
+      `,
+    )
+    .returning({ id: auditEvents.id });
+
+  const [updatedRows] = await db.batch([updateIncident, insertAuditEvent]);
+  const [updated] = updatedRows;
   return updated ?? null;
 }
 
@@ -174,13 +194,36 @@ export async function updateIncidentState(
   incidentId: string,
   fromState: string,
   toState: string,
+  actorUserId: string,
 ) {
-  const [updated] = await db
+  const now = new Date();
+  const updateIncident = db
     .update(incidents)
-    .set({ state: toState, updatedAt: new Date() })
+    .set({ state: toState, updatedAt: now })
     .where(and(eq(incidents.id, incidentId), eq(incidents.state, fromState)))
     .returning({ id: incidents.id, state: incidents.state });
 
+  const insertAuditEvent = db
+    .insert(auditEvents)
+    .select(
+      sql`
+        select
+          gen_random_uuid(),
+          ${incidentId}::uuid,
+          ${actorUserId},
+          'incident.state_changed',
+          ${JSON.stringify({ newState: toState, oldState: fromState })}::jsonb,
+          now()
+        from incidents
+        where id = ${incidentId}::uuid
+          and state = ${toState}
+          and updated_at = ${now}
+      `,
+    )
+    .returning({ id: auditEvents.id });
+
+  const [updatedRows] = await db.batch([updateIncident, insertAuditEvent]);
+  const [updated] = updatedRows;
   return updated ?? null;
 }
 
@@ -189,7 +232,7 @@ export async function startIncidentReview(
   reviewerUserId: string,
 ) {
   const now = new Date();
-  const [updated] = await db
+  const updateIncident = db
     .update(incidents)
     .set({
       reviewedAt: now,
@@ -197,11 +240,42 @@ export async function startIncidentReview(
       state: "reviewing",
       updatedAt: now,
     })
-    .where(
-      and(eq(incidents.id, incidentId), eq(incidents.state, "submitted")),
-    )
+    .where(and(eq(incidents.id, incidentId), eq(incidents.state, "submitted")))
     .returning({ id: incidents.id, state: incidents.state });
 
+  const insertAuditEvents = db
+    .insert(auditEvents)
+    .select(
+      sql`
+        select
+          gen_random_uuid(),
+          ${incidentId}::uuid,
+          ${reviewerUserId},
+          event.event_type,
+          event.metadata,
+          now()
+        from incidents
+        cross join (
+          values
+            ('incident.review_started', '{}'::jsonb),
+            (
+              'incident.state_changed',
+              ${JSON.stringify({
+                newState: "reviewing",
+                oldState: "submitted",
+              })}::jsonb
+            )
+        ) as event(event_type, metadata)
+        where id = ${incidentId}::uuid
+          and state = 'reviewing'
+          and updated_at = ${now}
+          and reviewed_by_user_id = ${reviewerUserId}
+      `,
+    )
+    .returning({ id: auditEvents.id });
+
+  const [updatedRows] = await db.batch([updateIncident, insertAuditEvents]);
+  const [updated] = updatedRows;
   return updated ?? null;
 }
 

@@ -14,20 +14,15 @@ import {
   INCIDENT_TYPES,
   OCCURRENCE_PRECISIONS,
   PILOT_DISTRICTS,
-  RISK_FLAG_KEYS,
 } from "../../domain/incidents/constants.js";
+import {
+  getChangedReviewFields,
+  reviewFieldsSchema,
+  riskFlagsSchema,
+} from "../../domain/incidents/review.js";
 import { canTransitionIncident } from "../../domain/incidents/state-machine.js";
 import type { CaseState } from "../../domain/incidents/types.js";
 import { operatorProcedure } from "../../index.js";
-import { recordAuditEvent } from "../../services/audit.js";
-
-const riskFlagsSchema = z
-  .object(
-    Object.fromEntries(
-      RISK_FLAG_KEYS.map((key) => [key, z.boolean()]),
-    ) as Record<(typeof RISK_FLAG_KEYS)[number], z.ZodBoolean>,
-  )
-  .strict();
 
 const incidentListItemSchema = z
   .object({
@@ -68,25 +63,6 @@ const incidentDetailSchema = incidentListItemSchema
   .strict();
 
 const incidentIdInputSchema = z.object({ incidentId: z.uuid() }).strict();
-
-const reviewFieldsSchema = z
-  .object({
-    affectedEstimate: z.number().int().nonnegative().nullable().optional(),
-    district: z.enum(PILOT_DISTRICTS).nullable().optional(),
-    incidentType: z.enum(INCIDENT_TYPES).nullable().optional(),
-    locationText: z.string().trim().min(3).max(200).nullable().optional(),
-    needs: z.array(z.enum(INCIDENT_NEEDS)).max(INCIDENT_NEEDS.length).optional(),
-    occurredAt: z.iso.datetime().nullable().optional(),
-    occurredAtPrecision: z.enum(OCCURRENCE_PRECISIONS).optional(),
-    riskFlags: riskFlagsSchema.optional(),
-    summary: z.string().trim().min(20).max(1200).nullable().optional(),
-    title: z.string().trim().min(5).max(160).nullable().optional(),
-    unknowns: z.array(z.string().trim().min(1).max(200)).max(10).optional(),
-  })
-  .strict()
-  .refine((values) => Object.keys(values).length > 0, {
-    message: "Provide at least one reviewed field.",
-  });
 
 type IncidentListRecord = Awaited<ReturnType<typeof listIncidents>>[number];
 type IncidentDetailRecord = NonNullable<
@@ -145,6 +121,7 @@ export const incidentRouter = {
         input.incidentId,
         fromState,
         input.toState,
+        context.actor.id,
       );
       if (!changed) {
         throw new ORPCError("CONFLICT", {
@@ -152,12 +129,6 @@ export const incidentRouter = {
         });
       }
 
-      await recordAuditEvent({
-        actorUserId: context.actor.id,
-        eventType: "incident.state_changed",
-        incidentId: input.incidentId,
-        metadata: { newState: input.toState, oldState: fromState },
-      });
       return serializeIncidentDetail(await requireIncident(input.incidentId));
     }),
 
@@ -204,17 +175,6 @@ export const incidentRouter = {
         });
       }
 
-      await recordAuditEvent({
-        actorUserId: context.actor.id,
-        eventType: "incident.review_started",
-        incidentId: input.incidentId,
-      });
-      await recordAuditEvent({
-        actorUserId: context.actor.id,
-        eventType: "incident.state_changed",
-        incidentId: input.incidentId,
-        metadata: { newState: "reviewing", oldState: "submitted" },
-      });
       return serializeIncidentDetail(await requireIncident(input.incidentId));
     }),
 
@@ -229,7 +189,12 @@ export const incidentRouter = {
     )
     .output(incidentDetailSchema)
     .handler(async ({ context, input }) => {
-      await requireIncident(input.incidentId);
+      const current = await requireIncident(input.incidentId);
+      const changedFields = getChangedReviewFields(current, input.values);
+      if (changedFields.length === 0) {
+        return serializeIncidentDetail(current);
+      }
+
       const updated = await updateIncidentReview(
         input.incidentId,
         {
@@ -242,6 +207,7 @@ export const incidentRouter = {
                 : new Date(input.values.occurredAt),
         },
         context.actor.id,
+        changedFields.join(","),
       );
       if (!updated) {
         throw new ORPCError("NOT_FOUND", {
@@ -249,11 +215,6 @@ export const incidentRouter = {
         });
       }
 
-      await recordAuditEvent({
-        actorUserId: context.actor.id,
-        eventType: "incident.edited",
-        incidentId: input.incidentId,
-      });
       return serializeIncidentDetail(await requireIncident(input.incidentId));
     }),
 };

@@ -23,6 +23,21 @@ describe("safe audit metadata", () => {
     });
   });
 
+  it("accepts only a bounded changed-field summary for incident edits", () => {
+    expect(
+      auditRecordSchema.parse({
+        actorUserId: "operator-id",
+        eventType: "incident.edited",
+        incidentId: "5d218f2e-ceb8-4c63-b442-385b32328f0a",
+        metadata: {
+          changedFields: "affectedEstimate,needs,title",
+        },
+      }),
+    ).toMatchObject({
+      metadata: { changedFields: "affectedEstimate,needs,title" },
+    });
+  });
+
   it.each(["rawReport", "outreachBody", "password", "session", "apiKey"])(
     "rejects the sensitive metadata key %s",
     (key) => {

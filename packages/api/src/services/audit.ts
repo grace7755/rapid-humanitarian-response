@@ -14,6 +14,7 @@ export const auditMetadataSchema = z
     outreachDraftId: z.uuid().optional(),
     matchCount: z.number().int().nonnegative().optional(),
     confidenceScore: z.number().int().min(0).max(100).optional(),
+    changedFields: z.string().trim().min(1).max(500).optional(),
     urgencyScore: z.number().int().min(0).max(100).optional(),
     oldState: z.enum(CASE_STATES).optional(),
     newState: z.enum(CASE_STATES).optional(),

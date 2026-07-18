@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { CASE_STATES } from "./constants";
-import {
-  canTransitionIncident,
-  getAllowedTransitions,
-} from "./state-machine";
+import { canTransitionIncident, getAllowedTransitions } from "./state-machine";
 
 const allowedTransitions = [
   ["submitted", "reviewing"],
@@ -27,8 +24,7 @@ describe("incident state machine", () => {
     for (const from of CASE_STATES) {
       for (const to of CASE_STATES) {
         const isListed = allowedTransitions.some(
-          ([listedFrom, listedTo]) =>
-            listedFrom === from && listedTo === to,
+          ([listedFrom, listedTo]) => listedFrom === from && listedTo === to,
         );
         expect(canTransitionIncident(from, to)).toBe(isListed);
       }

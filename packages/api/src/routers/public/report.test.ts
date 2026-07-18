@@ -23,13 +23,10 @@ describe("public report creation", () => {
     const persistRawReport = vi.fn();
 
     await expect(
-      createPublicReport(
-        publicReportInputSchema.parse(validInput),
-        {
-          persistRawReport,
-          verifyToken: vi.fn().mockResolvedValue(false),
-        },
-      ),
+      createPublicReport(publicReportInputSchema.parse(validInput), {
+        persistRawReport,
+        verifyToken: vi.fn().mockResolvedValue(false),
+      }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
     expect(persistRawReport).not.toHaveBeenCalled();
   });
@@ -42,13 +39,10 @@ describe("public report creation", () => {
     const persistRawReport = vi.fn().mockResolvedValue(receipt);
 
     await expect(
-      createPublicReport(
-        publicReportInputSchema.parse(validInput),
-        {
-          persistRawReport,
-          verifyToken: vi.fn().mockResolvedValue(true),
-        },
-      ),
+      createPublicReport(publicReportInputSchema.parse(validInput), {
+        persistRawReport,
+        verifyToken: vi.fn().mockResolvedValue(true),
+      }),
     ).resolves.toEqual(receipt);
 
     expect(persistRawReport).toHaveBeenCalledOnce();
@@ -80,13 +74,10 @@ describe("public report creation", () => {
 
   it("does not return a reference when persistence fails", async () => {
     await expect(
-      createPublicReport(
-        publicReportInputSchema.parse(validInput),
-        {
-          persistRawReport: vi.fn().mockRejectedValue(new Error("database")),
-          verifyToken: vi.fn().mockResolvedValue(true),
-        },
-      ),
+      createPublicReport(publicReportInputSchema.parse(validInput), {
+        persistRawReport: vi.fn().mockRejectedValue(new Error("database")),
+        verifyToken: vi.fn().mockResolvedValue(true),
+      }),
     ).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
   });
 });

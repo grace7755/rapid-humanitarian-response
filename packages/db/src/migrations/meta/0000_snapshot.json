@@ -76,12 +76,8 @@
           "name": "audit_events_incident_id_incidents_id_fk",
           "tableFrom": "audit_events",
           "tableTo": "incidents",
-          "columnsFrom": [
-            "incident_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["incident_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -89,12 +85,8 @@
           "name": "audit_events_actor_user_id_user_id_fk",
           "tableFrom": "audit_events",
           "tableTo": "user",
-          "columnsFrom": [
-            "actor_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["actor_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -220,12 +212,8 @@
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -312,12 +300,8 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -327,9 +311,7 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -393,9 +375,7 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -571,12 +551,8 @@
           "name": "evidence_incident_id_incidents_id_fk",
           "tableFrom": "evidence",
           "tableTo": "incidents",
-          "columnsFrom": [
-            "incident_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["incident_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -584,12 +560,8 @@
           "name": "evidence_created_by_user_id_user_id_fk",
           "tableFrom": "evidence",
           "tableTo": "user",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -868,12 +840,8 @@
           "name": "incidents_reviewed_by_user_id_user_id_fk",
           "tableFrom": "incidents",
           "tableTo": "user",
-          "columnsFrom": [
-            "reviewed_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["reviewed_by_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1007,12 +975,8 @@
           "name": "incident_matches_incident_id_incidents_id_fk",
           "tableFrom": "incident_matches",
           "tableTo": "incidents",
-          "columnsFrom": [
-            "incident_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["incident_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1020,12 +984,8 @@
           "name": "incident_matches_organization_id_organizations_id_fk",
           "tableFrom": "incident_matches",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1035,10 +995,7 @@
         "incident_matches_incident_org_unique": {
           "name": "incident_matches_incident_org_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "incident_id",
-            "organization_id"
-          ]
+          "columns": ["incident_id", "organization_id"]
         }
       },
       "policies": {},
@@ -1285,12 +1242,8 @@
           "name": "outreach_drafts_incident_id_incidents_id_fk",
           "tableFrom": "outreach_drafts",
           "tableTo": "incidents",
-          "columnsFrom": [
-            "incident_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["incident_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1298,12 +1251,8 @@
           "name": "outreach_drafts_organization_id_organizations_id_fk",
           "tableFrom": "outreach_drafts",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1311,12 +1260,8 @@
           "name": "outreach_drafts_created_by_user_id_user_id_fk",
           "tableFrom": "outreach_drafts",
           "tableTo": "user",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1326,10 +1271,7 @@
         "outreach_drafts_incident_org_unique": {
           "name": "outreach_drafts_incident_org_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "incident_id",
-            "organization_id"
-          ]
+          "columns": ["incident_id", "organization_id"]
         }
       },
       "policies": {},

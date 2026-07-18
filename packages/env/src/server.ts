@@ -12,6 +12,7 @@ function getVercelOrigin() {
 }
 
 const vercelOrigin = getVercelOrigin();
+const isProduction = process.env.NODE_ENV === "production";
 
 const booleanString = z
   .enum(["true", "false"])
@@ -56,7 +57,15 @@ export const env = createEnv({
     OPERATOR_EMAIL_ALLOWLIST: z
       .string()
       .optional()
-      .transform(parseOperatorAllowlist),
+      .transform(parseOperatorAllowlist)
+      .superRefine((value, context) => {
+        if (isProduction && value.length === 0) {
+          context.addIssue({
+            code: "custom",
+            message: "Required in production",
+          });
+        }
+      }),
     OPENROUTER_API_KEY: z.string().min(1).optional(),
     OPENROUTER_MODEL: z.string().min(1).optional(),
     OPENROUTER_APP_NAME: z
@@ -64,7 +73,19 @@ export const env = createEnv({
       .min(1)
       .default("rapid-humanitarian-response"),
     OPENROUTER_APP_URL: z.url().optional(),
-    TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
+    TURNSTILE_SECRET_KEY: z
+      .string()
+      .trim()
+      .min(1)
+      .optional()
+      .superRefine((value, context) => {
+        if (isProduction && !value) {
+          context.addIssue({
+            code: "custom",
+            message: "Required in production",
+          });
+        }
+      }),
     DEMO_MODE: booleanString,
   },
   runtimeEnv: runtimeEnv,
@@ -75,9 +96,7 @@ export const env = createEnv({
       (issue) =>
         issue.path
           ?.map((segment) =>
-            typeof segment === "object" &&
-            segment !== null &&
-            "key" in segment
+            typeof segment === "object" && segment !== null && "key" in segment
               ? String(segment.key)
               : String(segment),
           )
