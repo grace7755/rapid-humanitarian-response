@@ -1,7 +1,7 @@
 import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "../index.js";
-import { evidence, type NewEvidence } from "../schema/index.js";
+import { auditEvents, evidence, type NewEvidence } from "../schema/index.js";
 
 export function derivePublisherDomain(url: string) {
   const parsedUrl = new URL(url);
@@ -19,30 +19,79 @@ export type AddEvidenceInput = Omit<
 >;
 
 export async function addEvidence(input: AddEvidenceInput) {
-  const [created] = await db
+  const evidenceId = crypto.randomUUID();
+  const publisherDomain = derivePublisherDomain(input.url);
+  const insertEvidence = db
     .insert(evidence)
     .values({
       ...input,
-      publisherDomain: derivePublisherDomain(input.url),
+      id: evidenceId,
+      publisherDomain,
     })
     .returning({
       id: evidence.id,
       incidentId: evidence.incidentId,
       publisherDomain: evidence.publisherDomain,
     });
+  const insertAudit = db.insert(auditEvents).values({
+    actorUserId: input.createdByUserId,
+    eventType: "evidence.added",
+    incidentId: input.incidentId,
+    metadata: {
+      evidenceId,
+      relationship: input.relationship,
+      sourceCategory: input.sourceCategory,
+    },
+  });
 
-  return created;
+  const [createdRows] = await db.batch([insertEvidence, insertAudit]);
+  return createdRows[0];
 }
 
-export async function removeEvidence(evidenceId: string, incidentId: string) {
-  const [removed] = await db
+export async function removeEvidence(
+  evidenceId: string,
+  incidentId: string,
+  actorUserId: string,
+) {
+  const [existing] = await db
+    .select({
+      id: evidence.id,
+      incidentId: evidence.incidentId,
+      relationship: evidence.relationship,
+      sourceCategory: evidence.sourceCategory,
+    })
+    .from(evidence)
+    .where(
+      and(eq(evidence.id, evidenceId), eq(evidence.incidentId, incidentId)),
+    )
+    .limit(1);
+  if (!existing) return null;
+
+  const deleteEvidence = db
     .delete(evidence)
     .where(
       and(eq(evidence.id, evidenceId), eq(evidence.incidentId, incidentId)),
     )
-    .returning({ id: evidence.id, incidentId: evidence.incidentId });
+    .returning({
+      id: evidence.id,
+      incidentId: evidence.incidentId,
+      relationship: evidence.relationship,
+      sourceCategory: evidence.sourceCategory,
+    });
+  const insertAudit = db.insert(auditEvents).values({
+    actorUserId,
+    eventType: "evidence.removed",
+    incidentId,
+    metadata: {
+      evidenceId: existing.id,
+      relationship: existing.relationship,
+      sourceCategory: existing.sourceCategory,
+    },
+  });
 
-  return removed ?? null;
+  const [removedRows] = await db.batch([deleteEvidence, insertAudit]);
+  const [removed] = removedRows;
+  return removed ? { id: removed.id, incidentId: removed.incidentId } : null;
 }
 
 export async function listEvidenceForIncident(incidentId: string) {

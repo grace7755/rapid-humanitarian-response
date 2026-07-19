@@ -1,4 +1,6 @@
+import { listEvidenceForIncident } from "@my-better-t-app/db/queries/evidence";
 import {
+  approveIncidentFacts,
   getIncidentForOperator,
   listIncidents,
   startIncidentReview,
@@ -7,9 +9,11 @@ import {
 } from "@my-better-t-app/db/queries/incidents";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-
+import { evaluateFactApprovalGate } from "../../domain/incidents/approval.js";
 import {
   CASE_STATES,
+  EVIDENCE_RELATIONSHIPS,
+  EVIDENCE_SOURCE_CATEGORIES,
   INCIDENT_NEEDS,
   INCIDENT_TYPES,
   OCCURRENCE_PRECISIONS,
@@ -22,6 +26,7 @@ import {
 } from "../../domain/incidents/review.js";
 import { canTransitionIncident } from "../../domain/incidents/state-machine.js";
 import type { CaseState } from "../../domain/incidents/types.js";
+import { calculateUrgency } from "../../domain/scoring/urgency.js";
 import { operatorProcedure } from "../../index.js";
 
 const incidentListItemSchema = z
@@ -98,6 +103,71 @@ async function requireIncident(incidentId: string) {
 }
 
 export const incidentRouter = {
+  approveFacts: operatorProcedure
+    .input(
+      z
+        .object({
+          confirmation: z.literal(true),
+          incidentId: z.uuid(),
+        })
+        .strict(),
+    )
+    .output(incidentDetailSchema)
+    .handler(async ({ context, input }) => {
+      const [current, evidence] = await Promise.all([
+        requireIncident(input.incidentId),
+        listEvidenceForIncident(input.incidentId),
+      ]);
+      const gate = evaluateFactApprovalGate({
+        confirmation: input.confirmation,
+        district: current.district,
+        evidence: evidence.map((item) => ({
+          id: item.id,
+          isIndependent: item.isIndependent,
+          relationship: z.enum(EVIDENCE_RELATIONSHIPS).parse(item.relationship),
+          sourceCategory: z
+            .enum(EVIDENCE_SOURCE_CATEGORIES)
+            .parse(item.sourceCategory),
+        })),
+        factsApproved: current.factsApproved,
+        locationText: current.locationText,
+        occurredAt: current.occurredAt,
+        occurredAtPrecision: z
+          .enum(OCCURRENCE_PRECISIONS)
+          .parse(current.occurredAtPrecision),
+        state: current.state as CaseState,
+      });
+      if (!gate.passed) {
+        const failed = gate.conditions
+          .filter((condition) => !condition.passed)
+          .map((condition) => condition.label)
+          .join("; ");
+        throw new ORPCError("CONFLICT", {
+          message: `Facts cannot be approved: ${failed}.`,
+        });
+      }
+
+      if (current.factsApproved && current.state === "corroborated") {
+        return serializeIncidentDetail(current);
+      }
+
+      const urgency = calculateUrgency({ riskFlags: current.riskFlags });
+      const approved = await approveIncidentFacts(
+        input.incidentId,
+        context.actor.id,
+        {
+          confidenceScore: gate.confidence.score,
+          urgencyScore: urgency.score,
+        },
+      );
+      if (!approved) {
+        throw new ORPCError("CONFLICT", {
+          message: "The incident changed. Reload and revalidate the gate.",
+        });
+      }
+      return serializeIncidentDetail(await requireIncident(input.incidentId));
+    }),
+
   changeState: operatorProcedure
     .input(
       z
@@ -109,6 +179,16 @@ export const incidentRouter = {
     )
     .output(incidentDetailSchema)
     .handler(async ({ context, input }) => {
+      if (
+        input.toState === "corroborated" ||
+        input.toState === "outreach_ready" ||
+        input.toState === "contact_attempted"
+      ) {
+        throw new ORPCError("CONFLICT", {
+          message:
+            "This state is controlled by its server-validated workflow action.",
+        });
+      }
       const current = await requireIncident(input.incidentId);
       const fromState = current.state as CaseState;
       if (!canTransitionIncident(fromState, input.toState)) {

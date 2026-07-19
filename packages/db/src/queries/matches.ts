@@ -1,7 +1,8 @@
-import { desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 
 import { db } from "../index.js";
 import {
+  auditEvents,
   incidentMatches,
   type NewIncidentMatch,
   organizations,
@@ -15,13 +16,20 @@ export type ReplacementMatch = Pick<
 export async function replaceIncidentMatches(
   incidentId: string,
   matches: ReplacementMatch[],
+  actorUserId: string,
 ) {
   const deleteExisting = db
     .delete(incidentMatches)
     .where(eq(incidentMatches.incidentId, incidentId));
 
   if (matches.length === 0) {
-    await deleteExisting;
+    const insertAudit = db.insert(auditEvents).values({
+      actorUserId,
+      eventType: "matches.generated",
+      incidentId,
+      metadata: { matchCount: 0, matchScores: [] },
+    });
+    await db.batch([deleteExisting, insertAudit]);
     return [];
   }
 
@@ -33,8 +41,17 @@ export async function replaceIncidentMatches(
       organizationId: incidentMatches.organizationId,
       score: incidentMatches.score,
     });
+  const insertAudit = db.insert(auditEvents).values({
+    actorUserId,
+    eventType: "matches.generated",
+    incidentId,
+    metadata: {
+      matchCount: matches.length,
+      matchScores: matches.map((match) => match.score),
+    },
+  });
 
-  const [, inserted] = await db.batch([deleteExisting, insertNew]);
+  const [, inserted] = await db.batch([deleteExisting, insertNew, insertAudit]);
   return inserted;
 }
 
@@ -57,6 +74,16 @@ export async function listIncidentMatches(incidentId: string) {
       organizations,
       eq(incidentMatches.organizationId, organizations.id),
     )
-    .where(eq(incidentMatches.incidentId, incidentId))
-    .orderBy(desc(incidentMatches.score));
+    .where(
+      and(
+        eq(incidentMatches.incidentId, incidentId),
+        eq(organizations.reviewStatus, "reviewed"),
+      ),
+    )
+    .orderBy(
+      desc(incidentMatches.score),
+      asc(organizations.name),
+      asc(organizations.id),
+    )
+    .limit(3);
 }

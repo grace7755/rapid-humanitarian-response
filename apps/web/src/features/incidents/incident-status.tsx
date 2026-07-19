@@ -14,10 +14,10 @@ type IncidentDetail = Awaited<
 const nextStateOptions = {
   closed: [],
   contact_attempted: ["closed", "reviewing"],
-  corroborated: ["outreach_ready", "reviewing"],
-  outreach_ready: ["contact_attempted", "reviewing"],
+  corroborated: ["reviewing"],
+  outreach_ready: ["reviewing"],
   rejected: [],
-  reviewing: ["corroborated", "rejected"],
+  reviewing: ["rejected"],
   submitted: [],
 } as const;
 
@@ -26,9 +26,9 @@ function currentAction(state: IncidentDetail["state"]) {
     case "submitted":
       return "Start review, compare the raw report with editable facts, and save corrections.";
     case "reviewing":
-      return "Complete fact review. Evidence and score gates are added in the next workflow phase.";
+      return "Add public evidence, recalculate scores, then approve facts when every gate passes.";
     case "corroborated":
-      return "Facts are marked corroborated. Organization matching is not yet available.";
+      return "Facts passed the evidence gate. Generate a reviewed responder shortlist below.";
     case "outreach_ready":
       return "Review the future outreach package before recording any manual contact.";
     case "contact_attempted":

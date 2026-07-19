@@ -2,6 +2,7 @@ import { call } from "@orpc/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const databaseMocks = vi.hoisted(() => ({
+  approveIncidentFacts: vi.fn(),
   getIncidentForOperator: vi.fn(),
   listIncidents: vi.fn(),
   startIncidentReview: vi.fn(),
@@ -10,6 +11,10 @@ const databaseMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@my-better-t-app/db/queries/incidents", () => databaseMocks);
+const evidenceMocks = vi.hoisted(() => ({
+  listEvidenceForIncident: vi.fn(),
+}));
+vi.mock("@my-better-t-app/db/queries/evidence", () => evidenceMocks);
 vi.mock("@my-better-t-app/db/queries/users", () => ({
   getUserById: vi.fn().mockResolvedValue({
     email: "operator@example.org",
@@ -77,6 +82,63 @@ const context = {
 describe("operator incident mutations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    evidenceMocks.listEvidenceForIncident.mockResolvedValue([]);
+  });
+
+  it("rejects direct transitions into fact-approval-controlled state", async () => {
+    await expect(
+      call(
+        incidentRouter.changeState,
+        { incidentId, toState: "corroborated" },
+        { context: context as never },
+      ),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(databaseMocks.updateIncidentState).not.toHaveBeenCalled();
+  });
+
+  it("recalculates and atomically approves qualifying facts", async () => {
+    const reviewing = { ...baseIncident, state: "reviewing" };
+    const corroborated = {
+      ...reviewing,
+      confidenceScore: 80,
+      factsApproved: true,
+      state: "corroborated",
+      urgencyScore: 20,
+    };
+    databaseMocks.getIncidentForOperator
+      .mockResolvedValueOnce(reviewing)
+      .mockResolvedValueOnce(corroborated);
+    evidenceMocks.listEvidenceForIncident.mockResolvedValue([
+      {
+        id: crypto.randomUUID(),
+        isIndependent: true,
+        relationship: "supports",
+        sourceCategory: "official_authority",
+      },
+      {
+        id: crypto.randomUUID(),
+        isIndependent: true,
+        relationship: "supports",
+        sourceCategory: "community_eyewitness",
+      },
+    ]);
+    databaseMocks.approveIncidentFacts.mockResolvedValue({
+      factsApproved: true,
+      id: incidentId,
+    });
+
+    const result = await call(
+      incidentRouter.approveFacts,
+      { confirmation: true, incidentId },
+      { context: context as never },
+    );
+
+    expect(databaseMocks.approveIncidentFacts).toHaveBeenCalledWith(
+      incidentId,
+      "operator-id",
+      { confidenceScore: 80, urgencyScore: 20 },
+    );
+    expect(result.state).toBe("corroborated");
   });
 
   it("delegates state changes to the atomic database mutation", async () => {

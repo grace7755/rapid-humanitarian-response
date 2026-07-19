@@ -7,10 +7,15 @@ import EmptyState from "@/components/empty-state";
 import LoadingState from "@/components/loading-state";
 import PageHeader from "@/components/page-header";
 import PrototypeBanner from "@/components/prototype-banner";
+import EvidenceForm from "@/features/evidence/evidence-form";
+import EvidenceList from "@/features/evidence/evidence-list";
+import IncidentMatches from "@/features/organizations/incident-matches";
 import { orpc } from "@/utils/orpc";
 
+import ApprovalGate from "./approval-gate";
 import IncidentReviewForm from "./incident-review-form";
 import IncidentStatus from "./incident-status";
+import ScorePanel from "./score-panel";
 
 function getRawDescription(rawReport: string) {
   try {
@@ -182,6 +187,75 @@ export default function IncidentDetail({ incidentId }: { incidentId: string }) {
               <IncidentReviewForm
                 incident={incident}
                 key={incident.updatedAt}
+              />
+            </section>
+
+            <section
+              aria-labelledby="evidence-heading"
+              className="space-y-6 rounded-xl border bg-card p-5 sm:p-6"
+            >
+              <div>
+                <h2 className="font-semibold text-xl" id="evidence-heading">
+                  Public evidence
+                </h2>
+                <p className="mt-2 text-muted-foreground text-sm leading-6">
+                  Record how each public source relates to the reviewed facts.
+                  Evidence links and operator decisions remain protected.
+                </p>
+              </div>
+              <EvidenceList incidentId={incident.id} />
+              <div className="border-t pt-6">
+                <h3 className="mb-4 font-semibold text-lg">
+                  Add evidence record
+                </h3>
+                <EvidenceForm incidentId={incident.id} />
+              </div>
+            </section>
+
+            <section
+              aria-labelledby="scores-heading"
+              className="space-y-6 rounded-xl border bg-card p-5 sm:p-6"
+            >
+              <div>
+                <h2 className="font-semibold text-xl" id="scores-heading">
+                  Confidence and urgency
+                </h2>
+                <p className="mt-2 text-muted-foreground text-sm leading-6">
+                  Confidence measures available evidence, not truth. Urgency
+                  reflects reported conditions. Neither score is produced by AI.
+                </p>
+              </div>
+              <ScorePanel incidentId={incident.id} />
+            </section>
+
+            <section
+              aria-labelledby="approval-heading"
+              className="space-y-6 rounded-xl border bg-card p-5 sm:p-6"
+            >
+              <div>
+                <h2 className="font-semibold text-xl" id="approval-heading">
+                  Fact approval gate
+                </h2>
+                <p className="mt-2 text-muted-foreground text-sm leading-6">
+                  Every condition is re-read and recalculated on the server when
+                  approval is requested.
+                </p>
+              </div>
+              <ApprovalGate incident={incident} />
+            </section>
+
+            <section
+              aria-labelledby="matches-heading"
+              className="space-y-6 rounded-xl border bg-card p-5 sm:p-6"
+            >
+              <div>
+                <h2 className="font-semibold text-xl" id="matches-heading">
+                  Reviewed organization matches
+                </h2>
+              </div>
+              <IncidentMatches
+                canGenerate={incident.factsApproved}
+                incidentId={incident.id}
               />
             </section>
           </div>

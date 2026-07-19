@@ -282,21 +282,103 @@ export async function startIncidentReview(
 export async function approveIncidentFacts(
   incidentId: string,
   reviewerUserId: string,
+  scores: { confidenceScore: number; urgencyScore: number },
 ) {
   const now = new Date();
-  const [updated] = await db
+  const updateIncident = db
     .update(incidents)
     .set({
+      confidenceScore: scores.confidenceScore,
       factsApproved: true,
       reviewedAt: now,
       reviewedByUserId: reviewerUserId,
+      state: "corroborated",
       updatedAt: now,
+      urgencyScore: scores.urgencyScore,
     })
-    .where(eq(incidents.id, incidentId))
+    .where(
+      and(
+        eq(incidents.id, incidentId),
+        eq(incidents.state, "reviewing"),
+        eq(incidents.factsApproved, false),
+      ),
+    )
     .returning({
       factsApproved: incidents.factsApproved,
       id: incidents.id,
     });
 
+  const insertAuditEvents = db.insert(auditEvents).select(
+    sql`
+        select
+          gen_random_uuid(),
+          ${incidentId}::uuid,
+          ${reviewerUserId},
+          event.event_type,
+          event.metadata,
+          now()
+        from incidents
+        cross join (
+          values
+            (
+              'scores.calculated',
+              ${JSON.stringify(scores)}::jsonb
+            ),
+            (
+              'incident.facts_approved',
+              '{}'::jsonb
+            ),
+            (
+              'incident.state_changed',
+              ${JSON.stringify({
+                newState: "corroborated",
+                oldState: "reviewing",
+              })}::jsonb
+            )
+        ) as event(event_type, metadata)
+        where id = ${incidentId}::uuid
+          and state = 'corroborated'
+          and facts_approved = true
+          and updated_at = ${now}
+          and reviewed_by_user_id = ${reviewerUserId}
+      `,
+  );
+
+  const [updatedRows] = await db.batch([updateIncident, insertAuditEvents]);
+  const [updated] = updatedRows;
   return updated ?? null;
+}
+
+export async function updateIncidentScores(
+  incidentId: string,
+  scores: { confidenceScore: number; urgencyScore: number },
+  actorUserId: string,
+) {
+  const now = new Date();
+  const updateIncident = db
+    .update(incidents)
+    .set({ ...scores, updatedAt: now })
+    .where(eq(incidents.id, incidentId))
+    .returning({
+      confidenceScore: incidents.confidenceScore,
+      id: incidents.id,
+      urgencyScore: incidents.urgencyScore,
+    });
+  const insertAudit = db.insert(auditEvents).select(
+    sql`
+        select
+          gen_random_uuid(),
+          ${incidentId}::uuid,
+          ${actorUserId},
+          'scores.calculated',
+          ${JSON.stringify(scores)}::jsonb,
+          now()
+        from incidents
+        where id = ${incidentId}::uuid
+          and updated_at = ${now}
+      `,
+  );
+
+  const [updatedRows] = await db.batch([updateIncident, insertAudit]);
+  return updatedRows[0] ?? null;
 }

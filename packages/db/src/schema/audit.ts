@@ -12,7 +12,10 @@ import {
 import { user } from "./auth.js";
 import { incidents } from "./incidents.js";
 
-export type AuditMetadata = Record<string, boolean | number | string | null>;
+export type AuditMetadata = Record<
+  string,
+  boolean | number | string | number[] | null
+>;
 
 export const auditEvents = pgTable(
   "audit_events",

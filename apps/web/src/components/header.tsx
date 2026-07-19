@@ -11,12 +11,19 @@ export default function Header() {
   ] as const;
 
   return (
-    <div>
-      <div className="flex flex-row items-center justify-between px-2 py-1">
-        <nav className="flex gap-4 text-lg">
+    <header className="border-b bg-background">
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-2 sm:px-6">
+        <nav
+          aria-label="Public navigation"
+          className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm sm:text-base"
+        >
           {links.map(({ to, label }) => {
             return (
-              <Link key={to} to={to}>
+              <Link
+                className="inline-flex min-h-11 items-center underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                key={to}
+                to={to}
+              >
                 {label}
               </Link>
             );
@@ -24,8 +31,7 @@ export default function Header() {
         </nav>
         <ModeToggle />
       </div>
-      <hr />
-    </div>
+    </header>
   );
 }
 
@@ -33,14 +39,22 @@ export function OperatorHeader({ session }: { session: OperatorSession }) {
   const links = [
     { to: "/", label: "Home" },
     { to: "/dashboard", label: "Dashboard" },
+    { to: "/organizations", label: "Organizations" },
   ] as const;
 
   return (
-    <div>
-      <div className="flex flex-row items-center justify-between px-2 py-1">
-        <nav className="flex gap-4 text-lg">
+    <header className="border-b bg-background">
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-2 sm:px-6">
+        <nav
+          aria-label="Operator navigation"
+          className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm sm:text-base"
+        >
           {links.map(({ to, label }) => (
-            <Link key={to} to={to}>
+            <Link
+              className="inline-flex min-h-11 items-center underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              key={to}
+              to={to}
+            >
               {label}
             </Link>
           ))}
@@ -50,7 +64,6 @@ export function OperatorHeader({ session }: { session: OperatorSession }) {
           <UserMenu session={session} />
         </div>
       </div>
-      <hr />
-    </div>
+    </header>
   );
 }
