@@ -17,7 +17,6 @@ import {
   INCIDENT_NEEDS,
   INCIDENT_TYPES,
   OCCURRENCE_PRECISIONS,
-  PILOT_DISTRICTS,
 } from "../../domain/incidents/constants.js";
 import {
   getChangedReviewFields,
@@ -33,15 +32,24 @@ const incidentListItemSchema = z
   .object({
     confidenceScore: z.number().int().min(0).max(100),
     createdAt: z.string(),
-    district: z.enum(PILOT_DISTRICTS).nullable(),
+    district: z.string().min(2).max(100).nullable(),
     extractionStatus: z.enum(["pending", "complete", "failed"]),
     id: z.uuid(),
     incidentType: z.enum(INCIDENT_TYPES).nullable(),
+    priorityLevel: z.enum(["P0", "P1", "P2", "P3"]),
     reference: z.string(),
     state: z.enum(CASE_STATES),
     title: z.string().nullable(),
     updatedAt: z.string(),
     urgencyScore: z.number().int().min(0).max(100),
+    verificationStatus: z.enum([
+      "unverified",
+      "agent_review",
+      "agent_corroborated",
+      "operator_approved",
+      "contradicted",
+      "rejected",
+    ]),
   })
   .strict();
 
@@ -49,10 +57,13 @@ const incidentDetailSchema = incidentListItemSchema
   .extend({
     affectedEstimate: z.number().int().nonnegative().nullable(),
     country: z.literal("Bangladesh"),
-    division: z.literal("Chattogram"),
+    division: z.string().min(2).max(100),
+    divisionCode: z.string().nullable(),
+    districtCode: z.string().nullable(),
     factsApproved: z.boolean(),
     locationText: z.string().nullable(),
     modelId: z.string().nullable(),
+    origin: z.enum(["user_report", "automatic", "operator"]),
     needs: z.array(z.enum(INCIDENT_NEEDS)),
     occurredAt: z.string().nullable(),
     occurredAtPrecision: z.enum(OCCURRENCE_PRECISIONS),
@@ -86,9 +97,14 @@ function serializeIncidentDetail(incident: IncidentDetailRecord) {
   return incidentDetailSchema.parse({
     ...incident,
     createdAt: incident.createdAt.toISOString(),
+    districtCode: incident.districtCode ?? null,
+    divisionCode: incident.divisionCode ?? null,
     occurredAt: incident.occurredAt?.toISOString() ?? null,
+    origin: incident.origin ?? "user_report",
+    priorityLevel: incident.priorityLevel ?? "P3",
     reviewedAt: incident.reviewedAt?.toISOString() ?? null,
     updatedAt: incident.updatedAt.toISOString(),
+    verificationStatus: incident.verificationStatus ?? "unverified",
   });
 }
 

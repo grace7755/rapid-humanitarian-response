@@ -14,10 +14,12 @@ function getVercelOrigin() {
 const vercelOrigin = getVercelOrigin();
 const isProduction = process.env.NODE_ENV === "production";
 
-const booleanString = z
-  .enum(["true", "false"])
-  .default("true")
-  .transform((value) => value === "true");
+function booleanString(defaultValue: "true" | "false") {
+  return z
+    .enum(["true", "false"])
+    .default(defaultValue)
+    .transform((value) => value === "true");
+}
 
 export function parseOperatorAllowlist(value: string | undefined) {
   if (!value) return [];
@@ -73,6 +75,23 @@ export const env = createEnv({
       .min(1)
       .default("rapid-humanitarian-response"),
     OPENROUTER_APP_URL: z.url().optional(),
+    RELIEFWEB_APP_NAME: z.string().trim().min(3).optional(),
+    CRON_SECRET: z.string().min(16).optional(),
+    MONITORING_ENABLED: booleanString("false"),
+    LIVE_OUTREACH_ENABLED: booleanString("false"),
+    VOICE_ENABLED: booleanString("false"),
+    PILOT_DISTRICTS: z
+      .string()
+      .default("Cox's Bazar,Chattogram")
+      .transform((value) =>
+        value
+          .split(",")
+          .map((district) => district.trim())
+          .filter(Boolean),
+      ),
+    VAPI_API_KEY: z.string().trim().min(1).optional(),
+    VAPI_PHONE_NUMBER_ID: z.string().trim().min(1).optional(),
+    VAPI_WEBHOOK_SECRET: z.string().min(16).optional(),
     TURNSTILE_SECRET_KEY: z
       .string()
       .trim()
@@ -86,7 +105,7 @@ export const env = createEnv({
           });
         }
       }),
-    DEMO_MODE: booleanString,
+    DEMO_MODE: booleanString("true"),
   },
   runtimeEnv: runtimeEnv,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,

@@ -1,8 +1,14 @@
+import {
+  processWorkflowBatch,
+  runMonitoringCycle,
+} from "@my-better-t-app/api/agents/orchestrator";
 import { createContext } from "@my-better-t-app/api/context";
 import { publicErrorBody } from "@my-better-t-app/api/errors";
 import { appRouter } from "@my-better-t-app/api/routers/index";
 import { recordSafeError } from "@my-better-t-app/api/services/logging";
+import { contactOutcomeStatus } from "@my-better-t-app/api/services/vapi";
 import { auth } from "@my-better-t-app/auth";
+import { recordContactAttemptOutcome } from "@my-better-t-app/db/queries/contact-attempts";
 import { env } from "@my-better-t-app/env/server";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
@@ -15,6 +21,7 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { requestId } from "hono/request-id";
+import { z } from "zod";
 
 initLogger({
   env: { service: "my-better-t-app-server" },
@@ -40,6 +47,61 @@ app.use(
 );
 
 app.get("/", (c) => c.text("Rapid Humanitarian Response API running"));
+
+app.get("/internal/cron/monitor", async (c) => {
+  if (!env.CRON_SECRET) {
+    return c.json({ error: { code: "CRON_NOT_CONFIGURED" } }, 503);
+  }
+  if (c.req.header("authorization") !== `Bearer ${env.CRON_SECRET}`) {
+    return c.json({ error: { code: "UNAUTHORIZED" } }, 401);
+  }
+  if (!env.MONITORING_ENABLED) {
+    const workflow = await processWorkflowBatch();
+    return c.json({
+      externalMonitoring: "disabled" as const,
+      status: "completed" as const,
+      workflow,
+    });
+  }
+  const result = await runMonitoringCycle();
+  return c.json({ ...result, status: "completed" as const });
+});
+
+const vapiWebhookSchema = z
+  .object({
+    message: z
+      .object({
+        call: z.object({ id: z.string() }).passthrough(),
+        durationSeconds: z.number().optional(),
+        endedReason: z.string().optional(),
+        type: z.string(),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+
+app.post("/webhooks/vapi", async (c) => {
+  if (!env.VAPI_WEBHOOK_SECRET) {
+    return c.json({ error: { code: "WEBHOOK_NOT_CONFIGURED" } }, 503);
+  }
+  const suppliedSecret =
+    c.req.header("x-vapi-secret") ??
+    c.req.header("authorization")?.replace(/^Bearer\s+/i, "");
+  if (suppliedSecret !== env.VAPI_WEBHOOK_SECRET) {
+    return c.json({ error: { code: "UNAUTHORIZED" } }, 401);
+  }
+  const event = vapiWebhookSchema.parse(await c.req.json());
+  if (event.message.type === "end-of-call-report") {
+    await recordContactAttemptOutcome(event.message.call.id, {
+      outcome: {
+        durationSeconds: event.message.durationSeconds ?? null,
+        endedReason: event.message.endedReason ?? null,
+      },
+      status: contactOutcomeStatus(event.message.endedReason),
+    });
+  }
+  return c.json({ received: true });
+});
 
 app.use(
   "/rpc/*",

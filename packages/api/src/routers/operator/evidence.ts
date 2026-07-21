@@ -20,7 +20,8 @@ import { operatorProcedure } from "../../index.js";
 const evidenceRecordSchema = z
   .object({
     createdAt: z.string(),
-    createdByUserId: z.string(),
+    createdByAgentRunId: z.uuid().nullable(),
+    createdByUserId: z.string().nullable(),
     id: z.uuid(),
     isIndependent: z.boolean(),
     note: z.string().nullable(),
@@ -47,6 +48,7 @@ async function serializeEvidence(incidentId: string) {
     evidenceRecordSchema.parse({
       ...record,
       createdAt: record.createdAt.toISOString(),
+      createdByAgentRunId: record.createdByAgentRunId ?? null,
       publishedAt: record.publishedAt?.toISOString() ?? null,
     }),
   );

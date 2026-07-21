@@ -1,6 +1,12 @@
-# my-better-t-app
+# Rapid Humanitarian Response Platform
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines React, TanStack Router, Hono, ORPC, and more.
+An open-source, Bangladesh-first AI agent platform for detecting, verifying, and
+prioritizing emergency incidents while keeping external response actions under
+human control. See [the agent platform architecture](docs/agent-platform.md) for
+the workflow, safety gates, and activation runbook.
+
+The application uses Better-T-Stack with React, TanStack Router, Hono, oRPC,
+Drizzle, Neon Postgres, and a durable multi-agent workflow.
 
 ## Features
 
@@ -46,7 +52,8 @@ bun run db:generate
 bun run db:migrate
 ```
 
-Do not use `db:push` against production. Seed the idempotent fictional demo
+Do not use `db:push` against production. Seed the idempotent Bangladesh
+administrative areas, disabled monitoring-source registry, and fictional demo
 organization after the schema exists:
 
 ```bash
@@ -127,8 +134,8 @@ bun run deploy:check
 ```
 
 `deploy:check` requires the repository to be linked to the intended Vercel
-project. Database generation is non-mutating; migration application and seeding
-write to the database configured by `DATABASE_URL`.
+project. Database generation updates committed migration artifacts. Migration
+application and seeding write to the database configured by `DATABASE_URL`.
 
 ## Project Structure
 

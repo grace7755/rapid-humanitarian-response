@@ -13,6 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { user } from "./auth.js";
+import { administrativeAreas } from "./locations.js";
 
 export type IncidentRiskFlags = {
   accessBlocked: boolean;
@@ -30,6 +31,7 @@ export const incidents = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     reference: text("reference").notNull(),
     sourceType: text("source_type").default("community").notNull(),
+    origin: text("origin").default("user_report").notNull(),
     sourceUrl: text("source_url"),
     rawReport: text("raw_report").notNull(),
     title: text("title"),
@@ -37,7 +39,13 @@ export const incidents = pgTable(
     incidentType: text("incident_type"),
     country: text("country").default("Bangladesh").notNull(),
     division: text("division").default("Chattogram").notNull(),
+    divisionCode: text("division_code").references(
+      () => administrativeAreas.code,
+    ),
     district: text("district"),
+    districtCode: text("district_code").references(
+      () => administrativeAreas.code,
+    ),
     locationText: text("location_text"),
     occurredAt: timestamp("occurred_at", { withTimezone: true }),
     occurredAtPrecision: text("occurred_at_precision")
@@ -58,6 +66,10 @@ export const incidents = pgTable(
     confidenceScore: integer("confidence_score").default(0).notNull(),
     urgencyScore: integer("urgency_score").default(0).notNull(),
     state: text("state").default("submitted").notNull(),
+    verificationStatus: text("verification_status")
+      .default("unverified")
+      .notNull(),
+    priorityLevel: text("priority_level").default("P3").notNull(),
     factsApproved: boolean("facts_approved").default(false).notNull(),
     reviewedByUserId: text("reviewed_by_user_id").references(() => user.id, {
       onDelete: "set null",
@@ -83,15 +95,14 @@ export const incidents = pgTable(
       sql`${table.sourceType} in ('community', 'manual', 'reliefweb')`,
     ),
     check(
+      "incidents_origin_check",
+      sql`${table.origin} in ('user_report', 'automatic', 'operator')`,
+    ),
+    check(
       "incidents_incident_type_check",
       sql`${table.incidentType} is null or ${table.incidentType} in ('flood', 'landslide', 'cyclone', 'fire', 'earthquake', 'displacement', 'food_insecurity', 'water_shortage', 'medical_access', 'other')`,
     ),
     check("incidents_country_check", sql`${table.country} = 'Bangladesh'`),
-    check("incidents_division_check", sql`${table.division} = 'Chattogram'`),
-    check(
-      "incidents_district_check",
-      sql`${table.district} is null or ${table.district} in ('Cox''s Bazar', 'Chattogram', 'Bandarban', 'Rangamati', 'Khagrachhari', 'Feni', 'Noakhali', 'Lakshmipur', 'Cumilla', 'Chandpur', 'Brahmanbaria', 'Other or Unknown')`,
-    ),
     check(
       "incidents_occurred_at_precision_check",
       sql`${table.occurredAtPrecision} in ('exact', 'approximate', 'unknown')`,
@@ -111,6 +122,14 @@ export const incidents = pgTable(
     check(
       "incidents_state_check",
       sql`${table.state} in ('submitted', 'reviewing', 'corroborated', 'outreach_ready', 'contact_attempted', 'closed', 'rejected')`,
+    ),
+    check(
+      "incidents_verification_status_check",
+      sql`${table.verificationStatus} in ('unverified', 'agent_review', 'agent_corroborated', 'operator_approved', 'contradicted', 'rejected')`,
+    ),
+    check(
+      "incidents_priority_level_check",
+      sql`${table.priorityLevel} in ('P0', 'P1', 'P2', 'P3')`,
     ),
     check(
       "incidents_extraction_status_check",

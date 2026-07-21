@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -17,6 +18,7 @@ export const organizations = pgTable(
     name: text("name").notNull(),
     website: text("website").notNull(),
     contactEmail: text("contact_email"),
+    phoneNumber: text("phone_number"),
     country: text("country").notNull(),
     areasServed: jsonb("areas_served")
       .$type<string[]>()
@@ -27,6 +29,9 @@ export const organizations = pgTable(
       .default(sql`'[]'::jsonb`)
       .notNull(),
     organizationType: text("organization_type").notNull(),
+    escalationTier: integer("escalation_tier").default(6).notNull(),
+    automationAllowed: boolean("automation_allowed").default(false).notNull(),
+    operatingNotes: text("operating_notes"),
     reviewStatus: text("review_status").default("needs_review").notNull(),
     reviewSources: jsonb("review_sources")
       .$type<string[]>()
@@ -51,6 +56,10 @@ export const organizations = pgTable(
     check(
       "organizations_review_status_check",
       sql`${table.reviewStatus} in ('reviewed', 'needs_review', 'do_not_contact')`,
+    ),
+    check(
+      "organizations_escalation_tier_check",
+      sql`${table.escalationTier} between 1 and 8`,
     ),
     check(
       "organizations_reviewed_at_check",

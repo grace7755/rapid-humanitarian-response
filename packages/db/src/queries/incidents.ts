@@ -1,7 +1,14 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 
 import { db, neonSql } from "../index.js";
-import { auditEvents, incidents, type NewIncident } from "../schema/index.js";
+import { communityReportContentHash } from "../report-identity.js";
+import {
+  auditEvents,
+  incidents,
+  type NewIncident,
+  sourceObservations,
+} from "../schema/index.js";
+import { insertSourceObservationAndEnqueueCorrelation } from "./monitoring.js";
 
 export type CreateRawIncidentInput = {
   rawReport: string;
@@ -23,43 +30,42 @@ function generateIncidentReference() {
 export async function createRawIncident(
   input: CreateRawIncidentInput,
 ): Promise<PublicIncidentReceipt> {
-  const incidentId = crypto.randomUUID();
-  const auditEventId = crypto.randomUUID();
   const reference = input.reference ?? generateIncidentReference();
-  const sourceType = input.sourceType ?? "community";
+  const contentHash = await communityReportContentHash(
+    reference,
+    input.rawReport,
+  );
 
-  const insertIncident = neonSql`
-    insert into incidents (
-      id,
-      reference,
-      source_type,
-      source_url,
-      raw_report
+  const ensureCommunitySource = neonSql`
+    insert into monitoring_sources (
+      id, key, name, connector_type, endpoint, trust_tier, enabled
     ) values (
-      ${incidentId},
-      ${reference},
-      ${sourceType},
-      ${input.sourceUrl ?? null},
-      ${input.rawReport}
-    )
-  `;
-  const insertAuditEvent = neonSql`
-    insert into audit_events (
-      id,
-      incident_id,
-      actor_user_id,
-      event_type,
-      metadata
-    ) values (
-      ${auditEventId},
-      ${incidentId},
-      null,
-      'report.created',
-      '{}'::jsonb
-    )
+      '9cc607da-a19e-4a80-bdbc-e2273291e657',
+      'community-report',
+      'Community emergency reports',
+      'community',
+      'internal://public-report',
+      'community',
+      false
+    ) on conflict (key) do nothing
   `;
 
-  await neonSql.transaction([insertIncident, insertAuditEvent]);
+  await ensureCommunitySource;
+  await insertSourceObservationAndEnqueueCorrelation({
+    canonicalUrl: input.sourceUrl ?? null,
+    contentHash,
+    country: "Bangladesh",
+    district: null,
+    division: null,
+    excerpt: null,
+    externalId: reference,
+    incidentId: null,
+    incidentTypeCandidate: null,
+    publishedAt: null,
+    restrictedPayload: { rawReport: input.rawReport },
+    sourceId: "9cc607da-a19e-4a80-bdbc-e2273291e657",
+    title: null,
+  });
 
   return {
     reference,
@@ -80,6 +86,8 @@ export async function listIncidents(filters: IncidentListFilters = {}) {
       incidentType: incidents.incidentType,
       district: incidents.district,
       confidenceScore: incidents.confidenceScore,
+      priorityLevel: incidents.priorityLevel,
+      verificationStatus: incidents.verificationStatus,
       urgencyScore: incidents.urgencyScore,
       state: incidents.state,
       extractionStatus: incidents.extractionStatus,
@@ -98,6 +106,7 @@ export async function getIncidentForOperator(incidentId: string) {
       id: incidents.id,
       reference: incidents.reference,
       sourceType: incidents.sourceType,
+      origin: incidents.origin,
       sourceUrl: incidents.sourceUrl,
       rawReport: incidents.rawReport,
       title: incidents.title,
@@ -105,7 +114,9 @@ export async function getIncidentForOperator(incidentId: string) {
       incidentType: incidents.incidentType,
       country: incidents.country,
       division: incidents.division,
+      divisionCode: incidents.divisionCode,
       district: incidents.district,
+      districtCode: incidents.districtCode,
       locationText: incidents.locationText,
       occurredAt: incidents.occurredAt,
       occurredAtPrecision: incidents.occurredAtPrecision,
@@ -116,6 +127,8 @@ export async function getIncidentForOperator(incidentId: string) {
       confidenceScore: incidents.confidenceScore,
       urgencyScore: incidents.urgencyScore,
       state: incidents.state,
+      verificationStatus: incidents.verificationStatus,
+      priorityLevel: incidents.priorityLevel,
       factsApproved: incidents.factsApproved,
       reviewedByUserId: incidents.reviewedByUserId,
       reviewedAt: incidents.reviewedAt,
@@ -159,9 +172,12 @@ export async function updateIncidentReview(
     .update(incidents)
     .set({
       ...values,
+      factsApproved: false,
       reviewedByUserId: reviewerUserId,
       reviewedAt: now,
+      state: sql`case when ${incidents.factsApproved} and ${incidents.state} in ('corroborated', 'outreach_ready', 'contact_attempted') then 'reviewing' else ${incidents.state} end`,
       updatedAt: now,
+      verificationStatus: "agent_review",
     })
     .where(eq(incidents.id, incidentId))
     .returning({ id: incidents.id, updatedAt: incidents.updatedAt });
@@ -293,6 +309,7 @@ export async function approveIncidentFacts(
       reviewedAt: now,
       reviewedByUserId: reviewerUserId,
       state: "corroborated",
+      verificationStatus: "operator_approved",
       updatedAt: now,
       urgencyScore: scores.urgencyScore,
     })
@@ -381,4 +398,194 @@ export async function updateIncidentScores(
 
   const [updatedRows] = await db.batch([updateIncident, insertAudit]);
   return updatedRows[0] ?? null;
+}
+
+export async function updateIncidentAgentAssessment(
+  incidentId: string,
+  values: {
+    confidenceScore?: number;
+    priorityLevel?: "P0" | "P1" | "P2" | "P3";
+    urgencyScore?: number;
+    verificationStatus?:
+      | "agent_corroborated"
+      | "agent_review"
+      | "contradicted"
+      | "unverified";
+  },
+) {
+  const [updated] = await db
+    .update(incidents)
+    .set({ ...values, updatedAt: new Date() })
+    .where(
+      and(eq(incidents.id, incidentId), eq(incidents.factsApproved, false)),
+    )
+    .returning({ id: incidents.id });
+  return updated ?? null;
+}
+
+export async function findIncidentCorrelationCandidates(input: {
+  district: string | null;
+  incidentType: string | null;
+  locationText?: string | null;
+  publishedAt: Date | null;
+}) {
+  if ((!input.district && !input.locationText) || !input.incidentType)
+    return [];
+  const earliest = new Date(Date.now() - 48 * 60 * 60 * 1000);
+  const locationCondition = input.district
+    ? eq(incidents.district, input.district)
+    : sql<boolean>`${incidents.district} is not null and lower(${input.locationText ?? ""}) like '%' || lower(${incidents.district}) || '%'`;
+  return db
+    .select({ id: incidents.id })
+    .from(incidents)
+    .where(
+      and(
+        eq(incidents.country, "Bangladesh"),
+        locationCondition,
+        eq(incidents.incidentType, input.incidentType),
+        gte(incidents.createdAt, earliest),
+      ),
+    )
+    .orderBy(desc(incidents.updatedAt))
+    .limit(2);
+}
+
+export async function findUniqueDistrictMention(locationText: string) {
+  type DistrictMention = {
+    district: string;
+    division: string | null;
+  };
+  const result = await db.execute(sql<DistrictMention>`
+    select district.name as district, division.name as division
+    from administrative_areas as district
+    left join administrative_areas as division
+      on division.code = district.parent_code
+    where district.level = 'district'
+      and lower(${locationText}) like '%' || lower(district.name) || '%'
+    order by char_length(district.name) desc
+    limit 2
+  `);
+  const rows = result.rows as DistrictMention[];
+  return rows.length === 1 ? rows[0] : null;
+}
+
+export async function createAutomaticIncident(input: {
+  district: string | null;
+  division: string | null;
+  excerpt: string | null;
+  incidentType: string | null;
+  observationId: string;
+  occurredAt: Date | null;
+  origin: "automatic" | "user_report";
+  rawReport?: string | null;
+  reference?: string | null;
+  sourceUrl: string | null;
+  sourceType: "community" | "reliefweb";
+  title: string | null;
+}) {
+  const incidentId = crypto.randomUUID();
+  const reference = input.reference ?? generateIncidentReference();
+  const insertIncident = db
+    .insert(incidents)
+    .values({
+      district: input.district,
+      division: input.division ?? "Unknown",
+      extractionStatus: "pending",
+      incidentType: input.incidentType,
+      origin: input.origin,
+      occurredAt: input.occurredAt,
+      occurredAtPrecision: input.occurredAt ? "approximate" : "unknown",
+      rawReport:
+        input.rawReport ??
+        JSON.stringify({
+          excerpt: input.excerpt,
+          observationId: input.observationId,
+          title: input.title,
+        }),
+      reference,
+      sourceType: input.sourceType,
+      sourceUrl: input.sourceUrl,
+      title: input.title,
+      verificationStatus: "agent_review",
+    })
+    .returning({ id: incidents.id });
+  const linkObservation = db
+    .update(sourceObservations)
+    .set({
+      district: input.district,
+      division: input.division,
+      incidentId,
+    })
+    .where(eq(sourceObservations.id, input.observationId));
+  const insertAudit = db.insert(auditEvents).select(sql`
+    select
+      gen_random_uuid(),
+      ${incidentId}::uuid,
+      null,
+      'report.created',
+      ${JSON.stringify({ observationId: input.observationId })}::jsonb,
+      now()
+    where ${input.origin} = 'user_report'
+  `);
+  const [inserted] = await db.batch([
+    insertIncident,
+    linkObservation,
+    insertAudit,
+  ]);
+  return inserted[0] ?? null;
+}
+
+export async function recordCommunityReportCorrelation(
+  incidentId: string,
+  observationId: string,
+) {
+  await db.insert(auditEvents).select(sql`
+    select
+      gen_random_uuid(),
+      ${incidentId}::uuid,
+      null,
+      'report.created',
+      ${JSON.stringify({ observationId })}::jsonb,
+      now()
+    where not exists (
+      select 1
+      from audit_events
+      where incident_id = ${incidentId}::uuid
+        and event_type = 'report.created'
+        and metadata->>'observationId' = ${observationId}
+    )
+  `);
+}
+
+export async function applyAgentClassification(
+  incidentId: string,
+  values: {
+    district: string | null;
+    division: string | null;
+    incidentType: string | null;
+    locationText: string | null;
+    modelId: string | null;
+    needs: string[];
+    occurredAt: Date | null;
+    occurredAtPrecision: "approximate" | "exact" | "unknown";
+    riskFlags: NewIncident["riskFlags"];
+    summary: string | null;
+    title: string | null;
+    unknowns: string[];
+  },
+) {
+  const [updated] = await db
+    .update(incidents)
+    .set({
+      ...values,
+      division: values.division ?? "Unknown",
+      extractionStatus: "complete",
+      updatedAt: new Date(),
+      verificationStatus: "agent_review",
+    })
+    .where(
+      and(eq(incidents.id, incidentId), eq(incidents.factsApproved, false)),
+    )
+    .returning({ id: incidents.id });
+  return updated ?? null;
 }

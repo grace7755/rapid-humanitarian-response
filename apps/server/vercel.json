@@ -1,5 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "bun install --cwd ../..",
-  "buildCommand": "bun run --cwd ../.. build --filter=server..."
+  "buildCommand": "bun run --cwd ../.. build --filter=server...",
+  "crons": [
+    {
+      "path": "/internal/cron/monitor",
+      "schedule": "*/15 * * * *"
+    }
+  ]
 }

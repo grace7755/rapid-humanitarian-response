@@ -6,6 +6,7 @@ export const DEMO_ORGANIZATIONS = [
     name: "Harbor Lantern Response Collective (Demo)",
     website: "https://harbor-lantern.example",
     contactEmail: "response@harbor-lantern.example",
+    phoneNumber: null,
     country: "Bangladesh",
     areasServed: ["Bangladesh", "Chattogram", "Cox's Bazar"],
     sectors: [
@@ -16,6 +17,9 @@ export const DEMO_ORGANIZATIONS = [
       "health",
     ],
     organizationType: "local_ngo",
+    escalationTier: 6,
+    automationAllowed: false,
+    operatingNotes: "Demonstration record. Never contact as a real responder.",
     reviewStatus: "reviewed",
     reviewSources: ["https://sources.example/demo-registry-record"],
     lastReviewedAt: new Date("2026-01-01T00:00:00.000Z"),

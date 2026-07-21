@@ -4,7 +4,6 @@ import {
   INCIDENT_NEEDS,
   INCIDENT_TYPES,
   OCCURRENCE_PRECISIONS,
-  PILOT_DISTRICTS,
   RISK_FLAG_KEYS,
 } from "./constants.js";
 
@@ -25,7 +24,7 @@ export const reviewFieldsSchema = z
       .max(2_147_483_647)
       .nullable()
       .optional(),
-    district: z.enum(PILOT_DISTRICTS).nullable().optional(),
+    district: z.string().trim().min(2).max(100).nullable().optional(),
     incidentType: z.enum(INCIDENT_TYPES).nullable().optional(),
     locationText: z.string().trim().min(3).max(200).nullable().optional(),
     needs: z
