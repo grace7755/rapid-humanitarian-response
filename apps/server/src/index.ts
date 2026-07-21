@@ -24,7 +24,7 @@ import { requestId } from "hono/request-id";
 import { z } from "zod";
 
 initLogger({
-  env: { service: "my-better-t-app-server" },
+  env: { service: "rapid-humanitarian-response-server" },
 });
 
 const app = new Hono<EvlogVariables>();

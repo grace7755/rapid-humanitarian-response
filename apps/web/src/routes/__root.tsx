@@ -25,17 +25,12 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
   head: () => ({
     meta: [
       {
-        title: "my-better-t-app",
+        title: "Rapid Humanitarian Response",
       },
       {
         name: "description",
-        content: "my-better-t-app is a web application",
-      },
-    ],
-    links: [
-      {
-        rel: "icon",
-        href: "/favicon.ico",
+        content:
+          "A human-guided disaster reporting and response coordination platform for Bangladesh.",
       },
     ],
   }),

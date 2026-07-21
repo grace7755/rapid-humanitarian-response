@@ -114,8 +114,8 @@ function HomeRoute() {
           <h2 className="font-bold text-2xl">Built for careful review</h2>
           <p className="mt-3 max-w-3xl text-muted-foreground leading-7">
             Confidence and urgency stay separate, automation cannot approve
-            facts, and no contact is sent automatically. Review the approved
-            roadmap and product contract for the complete safety boundaries.
+            facts, and no contact is sent automatically. Read the agent guide in
+            the project repository for the complete safety boundaries.
           </p>
           {env.VITE_GITHUB_URL ? (
             <a
