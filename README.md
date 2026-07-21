@@ -1,56 +1,78 @@
 # Rapid Humanitarian Response Platform
 
-This is an open-source emergency-reporting project for Bangladesh.
+This is a free, open-source disaster response project for Bangladesh.
 
-It helps people collect reports, check evidence, rank urgent cases, and find
-possible response groups. It does **not** replace Bangladesh emergency service
-999. It does not promise that help will arrive.
+It helps people share emergency reports. It also helps trained people check
+the reports and find groups that may be able to help.
 
-## What does the app do?
+## Important safety message
+
+This app does **not** replace Bangladesh emergency service **999**.
+
+If someone is in danger, call 999 or contact local emergency workers. Do not
+wait for this app. The app cannot promise that help will arrive.
+
+## How does it work?
 
 Think of an AI agent as a small helper inside the app. Each helper has one job.
 
-1. A person sends an emergency report.
-2. Monitoring helpers collect reports from allowed public sources.
-3. Other helpers group, classify, verify, and rank the incident.
-4. A human operator checks the facts and evidence.
-5. The app suggests reviewed organizations that may be able to help.
+1. A person reports a flood, fire, cyclone, earthquake, landslide, or another
+   emergency.
+2. The app can also read approved public information sources.
+3. Small helpers compare the information and look for matching reports.
+4. They suggest the disaster type and how urgent it may be.
+5. A human checks the facts and evidence.
+6. After approval, the app suggests trusted help groups.
 
-The app never lets AI approve facts. Contact actions need a human decision.
-Calls to national emergency services, including 999, are manual-only.
+An NGO is a group that helps people but is not part of the government.
+
+AI cannot approve an incident. A human must make important decisions.
+Calls to emergency services, including 999, are always manual.
 
 ## What is already built?
 
 - A public emergency report form.
-- A protected operator dashboard.
-- Evidence, confidence, and urgency checks.
-- Monitoring, correlation, classification, verification, priority, and NGO
-  matching agents.
-- A durable job queue with retries and dead-job tracking.
-- Reviewed organization matching with clear reasons.
-- A guarded Vapi voice adapter for future approved pilots.
-- Safety switches that keep monitoring, outreach, and voice off by default.
+- A private dashboard for approved workers.
+- Helpers that monitor, group, classify, verify, and rank reports.
+- Checks for evidence, confidence, and urgency.
+- Suggestions for up to three reviewed help groups.
+- A work queue that can retry failed jobs.
+- Safe voice-call code for future approved tests.
+- Safety switches that are off by default.
 
-Communication drafts, reporting summaries, more data sources, and wider voice
-automation are good areas for future contributors.
+The app can check for new public information about every 15 minutes when a
+builder turns monitoring on and connects a scheduler.
+
+## What is not built yet?
+
+These features can be added by future contributors:
+
+- More approved information sources.
+- Communication and summary helpers.
+- Wider voice calling.
+- Support for countries outside Bangladesh.
 
 ## Safety rules
 
-- Do not use this app as your only way to ask for emergency help.
-- Do not add private medical records, identity papers, faces, or exact home
-  locations.
-- Do not add real organization contacts without reviewing a public source.
-- Keep `LIVE_OUTREACH_ENABLED=false` and `VOICE_ENABLED=false` while testing.
-- AI output is a suggestion. A trained person must check it.
+- Never use this app as your only way to ask for help.
+- Do not share private medical files, identity cards, faces, or exact home
+  addresses.
+- Check every organization and contact before using it.
+- Keep live monitoring and calling off while testing.
+- Treat every AI answer as a suggestion that a trained person must check.
 
-Read [the agent architecture](docs/agent-platform.md) for the technical safety
-rules.
+More technical safety details are in
+[the agent guide](docs/agent-platform.md).
 
-## Five setup steps
+---
+
+## Setup for developers
+
+The rest of this page explains how to run the project on a computer.
 
 ### 1. Install Bun
 
-Bun runs the project and installs its code packages.
+Bun installs and runs the project code.
 
 ```bash
 bun --version
@@ -60,7 +82,7 @@ If this command fails, install Bun from <https://bun.sh>.
 
 ### 2. Download the project
 
-Fork this repository on GitHub, or clone it:
+A fork is your own copy of a GitHub project. You can fork this project or run:
 
 ```bash
 git clone https://github.com/grace7755/rapid-humanitarian-response.git
@@ -68,46 +90,54 @@ cd rapid-humanitarian-response
 bun install
 ```
 
-### 3. Make your settings files
+### 3. Create settings files
 
-Copy these two example files:
+Copy these example files:
 
 ```text
 apps/server/.env.example  -> apps/server/.env
 apps/web/.env.example     -> apps/web/.env
 ```
 
-The `.env` files hold private settings. Git ignores them. Never upload them.
+These `.env` files hold private settings. Git ignores them. Never upload them.
 
-Required server settings:
+Main server settings:
 
-- `DATABASE_URL`: the private address of your Neon PostgreSQL database.
+- `DATABASE_URL`: the private address of your Neon database.
 - `BETTER_AUTH_SECRET`: a random secret with at least 32 characters.
-- `BETTER_AUTH_URL`: `http://localhost:3000/api/auth` for local work.
-- `CORS_ORIGIN`: `http://localhost:3001` for local work.
-- `OPERATOR_EMAIL_ALLOWLIST`: email addresses allowed into the dashboard.
+- `BETTER_AUTH_URL=http://localhost:3000/api/auth`
+- `CORS_ORIGIN=http://localhost:3001`
+- `OPERATOR_EMAIL_ALLOWLIST`: emails allowed to use the private dashboard.
 
-Required web settings:
+Main web setting:
 
 - `VITE_SERVER_URL=http://localhost:3000`
-- `VITE_TURNSTILE_SITE_KEY`: use a Cloudflare test key for local work.
 
-OpenRouter, ReliefWeb, Vapi, and live monitoring settings are optional. Leave
-their feature switches set to `false` until you understand their safety rules.
+Turnstile is optional for local work but required for a production build.
+OpenRouter, ReliefWeb, Vapi, and live monitoring are also optional.
 
-### 4. Prepare your database
+Keep these switches off during normal testing:
 
-A database is an organized place where the app saves information.
+```env
+MONITORING_ENABLED=false
+LIVE_OUTREACH_ENABLED=false
+VOICE_ENABLED=false
+```
 
-Create your own Neon database, put its URL in `apps/server/.env`, then run:
+### 4. Prepare the database
+
+A database is where the app saves information.
+
+Create a Neon database and place its private address in `apps/server/.env`.
+Then run:
 
 ```bash
 bun run db:migrate
 bun run db:seed
 ```
 
-The seed adds Bangladesh locations, disabled monitoring sources, and one fake
-`.example` organization. It does not add a real responder.
+The seed command adds Bangladesh places, disabled public sources, and one fake
+help group. It does not add a real emergency contact.
 
 ### 5. Start the app
 
@@ -118,52 +148,52 @@ bun run dev
 Open:
 
 - Web app: <http://localhost:3001>
-- API: <http://localhost:3000>
+- Server: <http://localhost:3000>
 
 ## Automatic monitoring
 
-The protected endpoint `/internal/cron/monitor` runs queued agent work. Any
-scheduler can call it every 15 minutes with this header:
+A scheduler is a timer for computer tasks. It can call this protected address
+about every 15 minutes:
 
 ```text
+GET /internal/cron/monitor
 Authorization: Bearer YOUR_CRON_SECRET
 ```
 
-External source polling happens only when `MONITORING_ENABLED=true`. Community
-reports can still move through the queue while external monitoring is off.
+Public sources are read only when `MONITORING_ENABLED=true`. Reports sent by
+people can still move through the work queue while monitoring is off.
 
 ## Useful commands
 
 ```bash
-bun run dev                 # Start the web app and API
-bun run check:ci            # Check code style without changing files
-bun run check-types         # Check TypeScript
-bun run test                # Run automated tests
-bun run build               # Build all packages
-bun run db:migrate          # Apply saved database migrations
-bun run db:seed             # Add safe starter records
-bun run db:studio           # Open the database viewer
+bun run dev          # Start the app
+bun run check:ci     # Check code style
+bun run check-types  # Check TypeScript code
+bun run test         # Run tests
+bun run build        # Build the project
+bun run db:migrate   # Prepare database tables
+bun run db:seed      # Add safe starter data
+bun run db:studio    # Open the database viewer
 ```
 
-## Project map
+## Project folders
 
 ```text
-apps/web/       pages and forms people see
-apps/server/    the Hono web server
-packages/api/   agents, rules, and protected API procedures
-packages/auth/  sign-in and operator access
-packages/db/    database tables, queries, migrations, and seed data
-packages/env/   safe environment-variable checks
-packages/ui/    shared screen components and styles
+apps/web/       pages and forms
+apps/server/    the web server
+packages/api/   agents, rules, and app doorways
+packages/auth/  sign-in and access rules
+packages/db/    saved data and database tools
+packages/env/   settings checks
+packages/ui/    shared screen parts
 ```
 
 An API is a safe doorway that lets two parts of an app talk to each other.
-This project uses oRPC for that doorway.
 
 ## Help improve the project
 
-You can fork the repository and change it for your community. Start with
-[CONTRIBUTING.md](CONTRIBUTING.md). Please read [SECURITY.md](SECURITY.md)
-before reporting a safety or privacy problem.
+You may fork, study, and improve this project. Start with
+[CONTRIBUTING.md](CONTRIBUTING.md). Read [SECURITY.md](SECURITY.md) before
+reporting a safety or privacy problem.
 
 This project uses the [Apache License 2.0](LICENSE).
