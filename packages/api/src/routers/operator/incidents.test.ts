@@ -15,6 +15,10 @@ const evidenceMocks = vi.hoisted(() => ({
   listEvidenceForIncident: vi.fn(),
 }));
 vi.mock("@my-better-t-app/db/queries/evidence", () => evidenceMocks);
+const workflowMocks = vi.hoisted(() => ({
+  enqueueWorkflowJob: vi.fn(),
+}));
+vi.mock("@my-better-t-app/db/queries/workflows", () => workflowMocks);
 vi.mock("@my-better-t-app/db/queries/users", () => ({
   getUserById: vi.fn().mockResolvedValue({
     email: "operator@example.org",
@@ -83,6 +87,7 @@ describe("operator incident mutations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     evidenceMocks.listEvidenceForIncident.mockResolvedValue([]);
+    workflowMocks.enqueueWorkflowJob.mockResolvedValue({ id: "job" });
   });
 
   it("rejects direct transitions into fact-approval-controlled state", async () => {
@@ -97,11 +102,13 @@ describe("operator incident mutations", () => {
   });
 
   it("recalculates and atomically approves qualifying facts", async () => {
+    const reviewedAt = new Date("2026-07-22T09:00:00.000Z");
     const reviewing = { ...baseIncident, state: "reviewing" };
     const corroborated = {
       ...reviewing,
       confidenceScore: 80,
       factsApproved: true,
+      reviewedAt,
       state: "corroborated",
       urgencyScore: 20,
     };
@@ -138,7 +145,43 @@ describe("operator incident mutations", () => {
       "operator-id",
       { confidenceScore: 80, urgencyScore: 20 },
     );
+    expect(workflowMocks.enqueueWorkflowJob).not.toHaveBeenCalled();
     expect(result.state).toBe("corroborated");
+  });
+
+  it("re-enqueues the same approval revision idempotently on retry", async () => {
+    const reviewedAt = new Date("2026-07-22T09:00:00.000Z");
+    const corroborated = {
+      ...baseIncident,
+      confidenceScore: 80,
+      factsApproved: true,
+      occurredAt: new Date("2026-07-22T08:00:00.000Z"),
+      occurredAtPrecision: "approximate",
+      reviewedAt,
+      state: "corroborated",
+    };
+    databaseMocks.getIncidentForOperator.mockResolvedValue(corroborated);
+    evidenceMocks.listEvidenceForIncident.mockResolvedValue([
+      {
+        id: crypto.randomUUID(),
+        isIndependent: false,
+        relationship: "supports",
+        sourceCategory: "official_authority",
+      },
+    ]);
+
+    await call(
+      incidentRouter.approveFacts,
+      { confirmation: true, incidentId },
+      { context: context as never },
+    );
+
+    expect(databaseMocks.approveIncidentFacts).not.toHaveBeenCalled();
+    expect(workflowMocks.enqueueWorkflowJob).toHaveBeenCalledWith({
+      idempotencyKey: `ngo_matching:${incidentId}:${reviewedAt.toISOString()}`,
+      jobType: "ngo_matching",
+      payload: { incidentId, requestedByUserId: "operator-id" },
+    });
   });
 
   it("delegates state changes to the atomic database mutation", async () => {

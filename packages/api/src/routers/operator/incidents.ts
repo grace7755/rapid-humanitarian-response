@@ -7,6 +7,7 @@ import {
   updateIncidentReview,
   updateIncidentState,
 } from "@my-better-t-app/db/queries/incidents";
+import { enqueueWorkflowJob } from "@my-better-t-app/db/queries/workflows";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { evaluateFactApprovalGate } from "../../domain/incidents/approval.js";
@@ -118,6 +119,22 @@ async function requireIncident(incidentId: string) {
   return incident;
 }
 
+async function enqueueNgoMatching(
+  incident: IncidentDetailRecord,
+  requestedByUserId: string,
+) {
+  if (!incident.reviewedAt) {
+    throw new ORPCError("CONFLICT", {
+      message: "Approved incident is missing its review revision.",
+    });
+  }
+  await enqueueWorkflowJob({
+    idempotencyKey: `ngo_matching:${incident.id}:${incident.reviewedAt.toISOString()}`,
+    jobType: "ngo_matching",
+    payload: { incidentId: incident.id, requestedByUserId },
+  });
+}
+
 export const incidentRouter = {
   approveFacts: operatorProcedure
     .input(
@@ -164,6 +181,7 @@ export const incidentRouter = {
       }
 
       if (current.factsApproved && current.state === "corroborated") {
+        await enqueueNgoMatching(current, context.actor.id);
         return serializeIncidentDetail(current);
       }
 
@@ -181,7 +199,8 @@ export const incidentRouter = {
           message: "The incident changed. Reload and revalidate the gate.",
         });
       }
-      return serializeIncidentDetail(await requireIncident(input.incidentId));
+      const approvedIncident = await requireIncident(input.incidentId);
+      return serializeIncidentDetail(approvedIncident);
     }),
 
   changeState: operatorProcedure

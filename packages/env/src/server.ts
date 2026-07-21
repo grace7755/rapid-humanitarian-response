@@ -2,16 +2,6 @@ import "dotenv/config";
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
 
-function getVercelOrigin() {
-  const vercelUrl =
-    process.env.VERCEL_ENV === "production"
-      ? (process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL)
-      : (process.env.VERCEL_URL ?? process.env.VERCEL_PROJECT_PRODUCTION_URL);
-  if (!vercelUrl) return undefined;
-  return vercelUrl.startsWith("http") ? vercelUrl : `https://${vercelUrl}`;
-}
-
-const vercelOrigin = getVercelOrigin();
 const isProduction = process.env.NODE_ENV === "production";
 
 function booleanString(defaultValue: "true" | "false") {
@@ -34,18 +24,7 @@ export function parseOperatorAllowlist(value: string | undefined) {
   ];
 }
 
-const runtimeEnv = {
-  ...process.env,
-  // Public auth base: /api/auth bypasses the rewrite's path strip, so the
-  // same URL works for incoming matching and generated callbacks
-  BETTER_AUTH_URL:
-    process.env.BETTER_AUTH_URL ??
-    (vercelOrigin ? `${vercelOrigin}/api/auth` : undefined),
-  CORS_ORIGIN: process.env.CORS_ORIGIN ?? vercelOrigin,
-};
-
 export const env = createEnv({
-  // Keep Vercel's function compiler from widening the omitted prefix to string.
   clientPrefix: "",
   client: {},
   server: {
@@ -107,7 +86,7 @@ export const env = createEnv({
       }),
     DEMO_MODE: booleanString("true"),
   },
-  runtimeEnv: runtimeEnv,
+  runtimeEnv: process.env,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
   emptyStringAsUndefined: true,
   onValidationError: (issues) => {

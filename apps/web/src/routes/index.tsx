@@ -1,3 +1,4 @@
+import { env } from "@my-better-t-app/env/web";
 import { Button } from "@my-better-t-app/ui/components/button";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
@@ -116,12 +117,16 @@ function HomeRoute() {
             facts, and no contact is sent automatically. Review the approved
             roadmap and product contract for the complete safety boundaries.
           </p>
-          <a
-            className="mt-5 inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
-            href="/implementation_plan.md"
-          >
-            Read the implementation roadmap
-          </a>
+          {env.VITE_GITHUB_URL ? (
+            <a
+              className="mt-5 inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
+              href={env.VITE_GITHUB_URL}
+              rel="noreferrer"
+              target="_blank"
+            >
+              View the open-source project
+            </a>
+          ) : null}
         </section>
       </main>
     </div>

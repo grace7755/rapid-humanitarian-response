@@ -3,7 +3,7 @@
   "type": "module",
   "scripts": {
     "build": "tsdown",
-    "postbuild": "bun ../../scripts/check-production-exports.ts",
+    "postbuild": "bun ../../scripts/check-workspace-exports.ts",
     "check-types": "tsc -b",
     "compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
     "dev": "bun --conditions=development run --hot src/index.ts",

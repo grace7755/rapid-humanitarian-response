@@ -1,88 +1,79 @@
-# AI Agent Platform Architecture
+# Agent Platform Architecture
 
-The MVP is a Bangladesh-only incident monitoring and coordination platform. It
-supports nationwide incident data while live response actions remain limited to
-the configured pilot districts (initially Chattogram and Cox's Bazar).
+The platform handles incidents in Bangladesh. It helps human operators review
+information and prepare a response. It does not command rescue teams or replace
+emergency services.
 
 ```mermaid
 flowchart LR
-  Cron[Vercel cron / 15 min] --> O[Orchestrator]
-  User[Community report] --> Obs[Source observation]
-  O --> M[Monitoring agent]
-  M --> Obs
-  Obs --> C[Correlation agent]
-  C --> I[Incident]
-  I --> X[Classification agent]
-  X --> V[Verification agent]
-  V --> P[Priority agent]
-  V --> Review[Operator review]
-  P --> Review
-  Review -->|explicit approval| Contact[Contact attempt]
-  Contact -->|separate explicit action| Voice[Vapi adapter]
-  Voice --> Outcome[Signed outcome webhook]
+  Report[Community report] --> Observation[Source observation]
+  Schedule[15-minute scheduler] --> Monitor[Monitoring agent]
+  Monitor --> Observation
+  Observation --> Correlate[Correlation agent]
+  Correlate --> Classify[Classification agent]
+  Classify --> Verify[Verification agent]
+  Verify --> Priority[Priority agent]
+  Priority --> Review[Human review]
+  Review --> Match[NGO matching agent]
+  Match --> Contact[Separately approved contact]
 ```
 
-## Foundation
+## The agent jobs
 
-- `monitoring_sources` contains curated connectors and per-source health state.
-  All seeded external sources are disabled until an operator configures and
-  enables them.
-- `source_observations` is the provenance and deduplication boundary. Raw
-  community content is restricted; operator lists expose normalized metadata.
-- `workflow_jobs` is a durable Postgres queue with leases, retries, dead-letter
-  state, and idempotency keys. `agent_runs` records each bounded agent action.
-- Incidents retain human review state alongside agent verification and priority.
-- `contact_attempts` records operator authorization separately from provider
-  execution and provider outcomes.
+- **Monitoring** reads an enabled public source.
+- **Correlation** links similar observations to one incident.
+- **Classification** suggests the incident type and structured facts.
+- **Verification** measures whether evidence supports the incident.
+- **Priority** calculates urgency using fixed rules.
+- **NGO matching** suggests up to three reviewed organizations.
 
-## Implemented agents
+The queue stores jobs in PostgreSQL. Jobs have leases, retries, idempotency
+keys, and a dead state. Agent runs store small summaries for operators.
 
-- Monitoring: polls a configured connector and normalizes observations.
-- Correlation: links an observation only when there is one unambiguous candidate;
-  otherwise it creates a new incident for review.
-- Classification: uses the provider-neutral model gateway, with a conservative
-  deterministic fallback when no model is configured.
-- Verification: converts source provenance to evidence and applies the existing
-  evidence gate. It never grants operator approval.
-- Priority: applies deterministic risk scoring and P0-P3 labels.
+Communication, reporting, and wider voice automation are extension points. They
+are not active agents in this release.
 
-Communication, NGO matching, reporting, and voice are represented by stable
-contracts. Matching and outreach logic from the earlier phases remains usable;
-the next versions can move those services behind agent handlers without changing
-the queue or incident model.
+## Human control
 
-## Safety invariants
+- An agent cannot approve facts.
+- New facts or evidence cancel an old approval.
+- Matching is advice only. It cannot contact an organization.
+- Live contact needs approved facts, reviewed contact data, and a pilot district.
+- National emergency services such as 999 are manual-only.
+- Voice calls also need organization consent and a second operator action.
+- Call results contain bounded status data, not transcripts.
 
-- Agent output cannot set `factsApproved` or `operator_approved`.
-- Fact edits, evidence changes, and newly correlated observations revoke stale
-  approval before agents recalculate the incident.
-- Live contact requires approved facts, `operator_approved` verification, a
-  reviewed organization, and a configured pilot district.
-- Tier 1 national emergency services (including 999) are manual-only.
-- Voice additionally requires organization opt-in, a reviewed phone number, an
-  explicit approved attempt, a single database execution claim, a second
-  operator action, and both live feature flags.
-- Monitoring, outreach, and voice flags default to false.
-- Provider webhooks store bounded outcome metadata, not call transcripts.
+These switches are `false` unless a builder changes them:
 
-## Activation runbook
+```env
+MONITORING_ENABLED=false
+LIVE_OUTREACH_ENABLED=false
+VOICE_ENABLED=false
+```
 
-1. Apply the committed migration to a non-production database and run the seed.
-2. Set `CRON_SECRET` and `RELIEFWEB_APP_NAME`; enable only sources whose terms and
-   credentials have been reviewed. USGS requires no application credential.
-3. Set `MONITORING_ENABLED=true` in a preview environment and observe source
-   health and agent runs through the operator API.
-4. Keep `LIVE_OUTREACH_ENABLED=false` and `VOICE_ENABLED=false` during shadow
-   operation. Review false positives, correlation behavior, and retry/dead jobs.
-5. Populate real organizations only from reviewed public contact information,
-   including escalation tier and automation consent.
-6. For the pilot, configure Vapi and its webhook secret, then enable live flags
-   only after call scripts and escalation procedures are approved.
+## Sources
 
-FFWC remains a configuration-required connector because its official data access
-must be registered and validated before use. Broad social-media crawling is out
-of scope for this MVP.
+The seed includes disabled entries for community reports, ReliefWeb, Bangladesh
+Flood Forecasting and Warning Centre, and USGS earthquakes. A builder must
+review each source's rules and configuration before enabling it.
 
-The cron worker continues processing queued community reports when external
-monitoring is disabled. The flag controls external polling, not user-report
-intake.
+Broad social-media crawling is not included.
+
+## Running the queue
+
+A scheduler may call `GET /internal/cron/monitor` about every 15 minutes. The
+request must include `Authorization: Bearer <CRON_SECRET>`.
+
+When monitoring is disabled, this endpoint can still process jobs created by
+community reports. It does not poll external sources.
+
+## Adding an agent
+
+1. Add its name to the controlled agent-name list.
+2. Define a small, strict job input.
+3. Write a handler that returns a safe summary.
+4. Register the handler with the orchestrator.
+5. Add tests for success, retries, stale data, and forbidden actions.
+
+Keep agents small. Reuse deterministic domain rules. Never place secrets, raw
+reports, contact details, or provider transcripts in job summaries.

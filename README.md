@@ -1,175 +1,169 @@
 # Rapid Humanitarian Response Platform
 
-An open-source, Bangladesh-first AI agent platform for detecting, verifying, and
-prioritizing emergency incidents while keeping external response actions under
-human control. See [the agent platform architecture](docs/agent-platform.md) for
-the workflow, safety gates, and activation runbook.
+This is an open-source emergency-reporting project for Bangladesh.
 
-The application uses Better-T-Stack with React, TanStack Router, Hono, oRPC,
-Drizzle, Neon Postgres, and a durable multi-agent workflow.
+It helps people collect reports, check evidence, rank urgent cases, and find
+possible response groups. It does **not** replace Bangladesh emergency service
+999. It does not promise that help will arrive.
 
-## Features
+## What does the app do?
 
-- **TypeScript** - For type safety and improved developer experience
-- **TanStack Router** - File-based routing with full type safety
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **Shared UI package** - shadcn/ui primitives live in `packages/ui`
-- **Hono** - Lightweight, performant server framework
-- **oRPC** - End-to-end type-safe APIs with OpenAPI integration
-- **Bun** - Runtime environment
-- **Drizzle** - TypeScript-first ORM
-- **PostgreSQL** - Database engine
-- **Authentication** - Better-Auth
-- **Biome** - Linting and formatting
-- **Turborepo** - Optimized monorepo build system
+Think of an AI agent as a small helper inside the app. Each helper has one job.
 
-## Getting Started
+1. A person sends an emergency report.
+2. Monitoring helpers collect reports from allowed public sources.
+3. Other helpers group, classify, verify, and rank the incident.
+4. A human operator checks the facts and evidence.
+5. The app suggests reviewed organizations that may be able to help.
 
-First, install the dependencies:
+The app never lets AI approve facts. Contact actions need a human decision.
+Calls to national emergency services, including 999, are manual-only.
+
+## What is already built?
+
+- A public emergency report form.
+- A protected operator dashboard.
+- Evidence, confidence, and urgency checks.
+- Monitoring, correlation, classification, verification, priority, and NGO
+  matching agents.
+- A durable job queue with retries and dead-job tracking.
+- Reviewed organization matching with clear reasons.
+- A guarded Vapi voice adapter for future approved pilots.
+- Safety switches that keep monitoring, outreach, and voice off by default.
+
+Communication drafts, reporting summaries, more data sources, and wider voice
+automation are good areas for future contributors.
+
+## Safety rules
+
+- Do not use this app as your only way to ask for emergency help.
+- Do not add private medical records, identity papers, faces, or exact home
+  locations.
+- Do not add real organization contacts without reviewing a public source.
+- Keep `LIVE_OUTREACH_ENABLED=false` and `VOICE_ENABLED=false` while testing.
+- AI output is a suggestion. A trained person must check it.
+
+Read [the agent architecture](docs/agent-platform.md) for the technical safety
+rules.
+
+## Five setup steps
+
+### 1. Install Bun
+
+Bun runs the project and installs its code packages.
 
 ```bash
+bun --version
+```
+
+If this command fails, install Bun from <https://bun.sh>.
+
+### 2. Download the project
+
+Fork this repository on GitHub, or clone it:
+
+```bash
+git clone https://github.com/grace7755/rapid-humanitarian-response.git
+cd rapid-humanitarian-response
 bun install
 ```
 
-## Database Setup
+### 3. Make your settings files
 
-This project uses PostgreSQL with Drizzle ORM.
+Copy these two example files:
 
-1. Make sure you have a PostgreSQL database set up.
-2. Copy `apps/server/.env.example` to `apps/server/.env` and provide local values.
-3. Choose the schema workflow for the target database:
-
-For a disposable local development database, schema push is available:
-
-```bash
-bun run db:push
+```text
+apps/server/.env.example  -> apps/server/.env
+apps/web/.env.example     -> apps/web/.env
 ```
 
-For shared, preview, and production databases, generate and apply committed migrations:
+The `.env` files hold private settings. Git ignores them. Never upload them.
+
+Required server settings:
+
+- `DATABASE_URL`: the private address of your Neon PostgreSQL database.
+- `BETTER_AUTH_SECRET`: a random secret with at least 32 characters.
+- `BETTER_AUTH_URL`: `http://localhost:3000/api/auth` for local work.
+- `CORS_ORIGIN`: `http://localhost:3001` for local work.
+- `OPERATOR_EMAIL_ALLOWLIST`: email addresses allowed into the dashboard.
+
+Required web settings:
+
+- `VITE_SERVER_URL=http://localhost:3000`
+- `VITE_TURNSTILE_SITE_KEY`: use a Cloudflare test key for local work.
+
+OpenRouter, ReliefWeb, Vapi, and live monitoring settings are optional. Leave
+their feature switches set to `false` until you understand their safety rules.
+
+### 4. Prepare your database
+
+A database is an organized place where the app saves information.
+
+Create your own Neon database, put its URL in `apps/server/.env`, then run:
 
 ```bash
-bun run db:generate
 bun run db:migrate
-```
-
-Do not use `db:push` against production. Seed the idempotent Bangladesh
-administrative areas, disabled monitoring-source registry, and fictional demo
-organization after the schema exists:
-
-```bash
 bun run db:seed
 ```
 
-Then, run the development server:
+The seed adds Bangladesh locations, disabled monitoring sources, and one fake
+`.example` organization. It does not add a real responder.
+
+### 5. Start the app
 
 ```bash
 bun run dev
 ```
 
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
-The API is running at [http://localhost:3000](http://localhost:3000).
+Open:
 
-## UI Customization
+- Web app: <http://localhost:3001>
+- API: <http://localhost:3000>
 
-React web apps in this stack share shadcn/ui primitives through `packages/ui`.
+## Automatic monitoring
 
-- Change design tokens and global styles in `packages/ui/src/styles/globals.css`
-- Update shared primitives in `packages/ui/src/components/*`
-- Adjust shadcn aliases or style config in `packages/ui/components.json` and `apps/web/components.json`
+The protected endpoint `/internal/cron/monitor` runs queued agent work. Any
+scheduler can call it every 15 minutes with this header:
 
-### Add more shared components
+```text
+Authorization: Bearer YOUR_CRON_SECRET
+```
 
-Run this from the project root to add more primitives to the shared UI package:
+External source polling happens only when `MONITORING_ENABLED=true`. Community
+reports can still move through the queue while external monitoring is off.
+
+## Useful commands
 
 ```bash
-npx shadcn@latest add accordion dialog popover sheet table -c packages/ui
+bun run dev                 # Start the web app and API
+bun run check:ci            # Check code style without changing files
+bun run check-types         # Check TypeScript
+bun run test                # Run automated tests
+bun run build               # Build all packages
+bun run db:migrate          # Apply saved database migrations
+bun run db:seed             # Add safe starter records
+bun run db:studio           # Open the database viewer
 ```
 
-Import shared components like this:
+## Project map
 
-```tsx
-import { Button } from "@my-better-t-app/ui/components/button";
+```text
+apps/web/       pages and forms people see
+apps/server/    the Hono web server
+packages/api/   agents, rules, and protected API procedures
+packages/auth/  sign-in and operator access
+packages/db/    database tables, queries, migrations, and seed data
+packages/env/   safe environment-variable checks
+packages/ui/    shared screen components and styles
 ```
 
-### Add app-specific blocks
+An API is a safe doorway that lets two parts of an app talk to each other.
+This project uses oRPC for that doorway.
 
-If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
+## Help improve the project
 
-## Deployment
+You can fork the repository and change it for your community. Start with
+[CONTRIBUTING.md](CONTRIBUTING.md). Please read [SECURITY.md](SECURITY.md)
+before reporting a safety or privacy problem.
 
-### Vercel Services
-
-- Target: web + server
-- Config: `vercel.json`
-- Link the project first: bun run deploy:setup
-- Local Vercel dev: bun run dev:vercel
-- Sync preview env: bun run env:preview
-- Sync production env: bun run env:production
-- Dry-run check (no upload): bun run deploy:check
-- Preview deploy: bun run deploy
-- Production deploy: bun run deploy:prod
-- Web requests under `/api/*` route to the server service and are rewritten before reaching the backend.
-  Vercel Services share project environment variables, but deploys do not upload local `.env` files automatically. Link the project with `vercel link`, then run the env sync command before your first deploy (otherwise the deployment starts with no env vars), or pass one-off envs with `vercel deploy -e KEY=value`.
-  Pass Vercel CLI flags to the env sync command directly, for example: `bun run env:production --scope your-team`.
-
-For more details, see the guide on [Deploying to Vercel](https://www.better-t-stack.dev/docs/guides/vercel).
-
-## Git Hooks and Formatting
-
-- Apply safe formatting fixes: `bun run check`
-- Run the non-mutating backend CI check: `bun run check:ci`
-
-## Quality Gates
-
-Run these commands from the repository root:
-
-```bash
-bun install
-bun run check:ci
-bun run check-types
-bun run test
-bun run build
-bun run db:generate
-bun run deploy:check
-```
-
-`deploy:check` requires the repository to be linked to the intended Vercel
-project. Database generation updates committed migration artifacts. Migration
-application and seeding write to the database configured by `DATABASE_URL`.
-
-## Project Structure
-
-```
-my-better-t-app/
-├── apps/
-│   ├── web/         # Frontend application (React + TanStack Router)
-│   └── server/      # Backend API (Hono, ORPC)
-├── packages/
-│   ├── ui/          # Shared shadcn/ui components and styles
-│   ├── api/         # API layer / business logic
-│   ├── auth/        # Authentication configuration & logic
-│   └── db/          # Database schema & queries
-```
-
-## Available Scripts
-
-- `bun run dev`: Start all applications in development mode
-- `bun run build`: Build all applications
-- `bun run dev:web`: Start only the web application
-- `bun run dev:server`: Start only the server
-- `bun run check-types`: Check TypeScript types across all apps
-- `bun run test`: Run package-owned tests through Turborepo
-- `bun run db:push`: Push schema changes to database
-- `bun run db:generate`: Generate Drizzle SQL migrations
-- `bun run db:migrate`: Run database migrations
-- `bun run db:seed`: Upsert fictional demo organization records
-- `bun run db:studio`: Open database studio UI
-- `bun run check`: Run Biome formatting and linting
-- `bun run check:ci`: Run non-mutating backend and changed-route checks
-- `bun run deploy:setup`: Link this repo to a Vercel project (first-time setup)
-- `bun run dev:vercel`: Run the Vercel Services dev environment locally
-- `bun run env:preview`: Sync local env files to the Vercel preview environment
-- `bun run env:production`: Sync local env files to the Vercel production environment
-- `bun run deploy`: Create a Vercel preview deployment
-- `bun run deploy:prod`: Deploy to Vercel production
-- `bun run deploy:check`: Dry-run a deploy to preview framework detection and included files without uploading
+This project uses the [Apache License 2.0](LICENSE).

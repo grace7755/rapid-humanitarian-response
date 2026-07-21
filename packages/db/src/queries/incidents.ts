@@ -7,6 +7,7 @@ import {
   incidents,
   type NewIncident,
   sourceObservations,
+  workflowJobs,
 } from "../schema/index.js";
 import { insertSourceObservationAndEnqueueCorrelation } from "./monitoring.js";
 
@@ -301,6 +302,7 @@ export async function approveIncidentFacts(
   scores: { confidenceScore: number; urgencyScore: number },
 ) {
   const now = new Date();
+  const matchingJobKey = `ngo_matching:${incidentId}:${now.toISOString()}`;
   const updateIncident = db
     .update(incidents)
     .set({
@@ -361,7 +363,36 @@ export async function approveIncidentFacts(
       `,
   );
 
-  const [updatedRows] = await db.batch([updateIncident, insertAuditEvents]);
+  const insertMatchingJob = db
+    .insert(workflowJobs)
+    .select(
+      db
+        .select({
+          jobType: sql<string>`'ngo_matching'`.as("job_type"),
+          payload: sql<Record<string, unknown>>`jsonb_build_object(
+            'incidentId', ${incidentId},
+            'requestedByUserId', ${reviewerUserId}
+          )`.as("payload"),
+          idempotencyKey: sql<string>`${matchingJobKey}`.as("idempotency_key"),
+        })
+        .from(incidents)
+        .where(
+          and(
+            eq(incidents.id, incidentId),
+            eq(incidents.state, "corroborated"),
+            eq(incidents.factsApproved, true),
+            eq(incidents.updatedAt, now),
+            eq(incidents.reviewedByUserId, reviewerUserId),
+          ),
+        ),
+    )
+    .onConflictDoNothing({ target: workflowJobs.idempotencyKey });
+
+  const [updatedRows] = await db.batch([
+    updateIncident,
+    insertAuditEvents,
+    insertMatchingJob,
+  ]);
   const [updated] = updatedRows;
   return updated ?? null;
 }

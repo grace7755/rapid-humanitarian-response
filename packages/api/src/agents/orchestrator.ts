@@ -10,6 +10,7 @@ import {
 
 import type { AgentName } from "./contracts.js";
 import { safeErrorCode } from "./errors.js";
+import { runNgoMatchingAgent } from "./ngo-matching.js";
 import {
   runClassificationAgent,
   runCorrelationAgent,
@@ -22,6 +23,7 @@ const supportedJobs = {
   classification: runClassificationAgent,
   correlation: runCorrelationAgent,
   monitoring: runMonitoringAgent,
+  ngo_matching: runNgoMatchingAgent,
   priority: runPriorityAgent,
   verification: runVerificationAgent,
 } as const;
