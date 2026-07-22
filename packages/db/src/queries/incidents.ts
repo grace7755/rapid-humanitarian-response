@@ -401,4 +401,3 @@ export async function applyAgentClassification(
     .returning({ id: incidents.id });
   return updated ?? null;
 }
-
