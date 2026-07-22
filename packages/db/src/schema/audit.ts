@@ -43,7 +43,7 @@ export const auditEvents = pgTable(
     ),
     check(
       "audit_events_event_type_check",
-      sql`${table.eventType} in ('report.created', 'extraction.started', 'extraction.completed', 'extraction.failed', 'incident.edited', 'incident.review_started', 'incident.facts_approved', 'evidence.added', 'evidence.removed', 'scores.calculated', 'matches.generated', 'outreach.generated', 'outreach.subject_copied', 'outreach.body_copied', 'outreach.mailto_opened', 'outreach.contact_attempt_confirmed', 'incident.state_changed')`,
+      sql`${table.eventType} in ('report.created', 'extraction.started', 'extraction.completed', 'extraction.failed', 'evidence.added', 'verification.completed', 'verification.expired', 'scores.calculated', 'matches.generated', 'partner_notification.sent', 'partner_notification.delivered', 'partner_notification.failed', 'incident.state_changed', 'legacy.human_action')`,
     ),
     check(
       "audit_events_metadata_object_check",

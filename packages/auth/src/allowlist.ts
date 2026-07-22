@@ -8,27 +8,27 @@ export function getEmailFromRequestBody(body: unknown) {
   return body.email;
 }
 
-export function normalizeOperatorEmail(email: string) {
+export function normalizeObserverEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-export function isOperatorEmailAllowlisted(
+export function isObserverEmailAllowlisted(
   email: string,
   allowlist: readonly string[],
 ) {
-  return allowlist.includes(normalizeOperatorEmail(email));
+  return allowlist.includes(normalizeObserverEmail(email));
 }
 
-export function requireAllowlistedOperatorEmail(
+export function requireAllowlistedObserverEmail(
   email: unknown,
   allowlist: readonly string[],
 ) {
   if (
     typeof email !== "string" ||
-    !isOperatorEmailAllowlisted(email, allowlist)
+    !isObserverEmailAllowlisted(email, allowlist)
   ) {
     throw new APIError("FORBIDDEN", {
-      message: "This account is not authorized for operator access.",
+      message: "This account is not authorized for observer access.",
     });
   }
 }

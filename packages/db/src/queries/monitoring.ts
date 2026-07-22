@@ -157,6 +157,7 @@ export async function listObservationsForIncident(incidentId: string) {
       excerpt: sourceObservations.excerpt,
       externalId: sourceObservations.externalId,
       id: sourceObservations.id,
+      incidentTypeCandidate: sourceObservations.incidentTypeCandidate,
       observedAt: sourceObservations.observedAt,
       publishedAt: sourceObservations.publishedAt,
       sourceKey: monitoringSources.key,
@@ -217,15 +218,14 @@ export async function linkObservationToIncident(
     })
     .where(eq(sourceObservations.id, observationId))
     .returning({ id: sourceObservations.id });
-  const invalidateApproval = db
+  const restartVerification = db
     .update(incidents)
     .set({
-      factsApproved: false,
-      state: sql`case when ${incidents.factsApproved} and ${incidents.state} in ('corroborated', 'outreach_ready', 'contact_attempted') then 'reviewing' else ${incidents.state} end`,
+      state: sql`case when ${incidents.state} in ('corroborated', 'escalation_ready', 'notified') then 'verifying' else ${incidents.state} end`,
       updatedAt: new Date(),
-      verificationStatus: "agent_review",
+      verificationStatus: "pending",
     })
     .where(eq(incidents.id, incidentId));
-  const [updatedRows] = await db.batch([linkObservation, invalidateApproval]);
+  const [updatedRows] = await db.batch([linkObservation, restartVerification]);
   return updatedRows[0] ?? null;
 }

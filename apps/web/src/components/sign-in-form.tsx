@@ -41,7 +41,7 @@ export default function SignInForm({
           },
           onError: () => {
             const message =
-              "Sign in failed. Check your details and operator access.";
+              "Sign in failed. Check your details and observer access.";
             setAuthError(message);
             toast.error(message);
           },
@@ -62,9 +62,9 @@ export default function SignInForm({
 
   return (
     <div className="w-full rounded-xl border bg-card p-5 shadow-sm sm:p-7">
-      <h1 className="mb-2 text-center font-bold text-3xl">Operator sign in</h1>
+      <h1 className="mb-2 text-center font-bold text-3xl">Observer sign in</h1>
       <p className="mb-6 text-center text-muted-foreground">
-        Access is limited to approved operator accounts.
+        Access is limited to approved read-only observer accounts.
       </p>
 
       {authError ? (
@@ -158,7 +158,7 @@ export default function SignInForm({
           onClick={onSwitchToSignUp}
           className="min-h-11 whitespace-normal"
         >
-          First-time setup for an allowlisted operator
+          First-time setup for an allowlisted observer
         </Button>
       </div>
     </div>

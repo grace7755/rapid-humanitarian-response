@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { hashObservation, UsgsConnector } from "./connectors.js";
+import {
+  createConnector,
+  hashObservation,
+  UsgsConnector,
+} from "./connectors.js";
 
 const insideBangladesh = {
   geometry: { coordinates: [90.4, 23.8, 10] },
@@ -91,5 +95,64 @@ describe("official monitoring connectors", () => {
     expect(await hashObservation(candidate)).toBe(
       await hashObservation({ ...candidate, excerpt: "Changed excerpt" }),
     );
+  });
+
+  it("turns FFWC danger-level records into official flood observations", async () => {
+    const connector = createConnector(
+      "ffwc",
+      (async () =>
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                danger_level: 5,
+                district: "Feni",
+                id: "station-1",
+                observed_at: "2026-07-22T08:00:00.000Z",
+                station_name: "Feni River",
+                status: "Flood",
+                water_level: 5.4,
+              },
+            ],
+          }),
+        )) as unknown as typeof fetch,
+    );
+
+    const result = await connector.poll({
+      cursor: null,
+      endpoint: "https://api.ffwc.gov.bd/warnings",
+      signal: new AbortController().signal,
+    });
+
+    expect(result.observations[0]).toMatchObject({
+      district: "Feni",
+      externalId: "station-1",
+      incidentTypeCandidate: "flood",
+    });
+  });
+
+  it("parses approved RSS feeds into source observations", async () => {
+    const connector = createConnector(
+      "rss",
+      (async () =>
+        new Response(`<?xml version="1.0"?><rss><channel><item>
+          <guid>story-1</guid><title>Flood in Feni</title>
+          <link>https://news.example/story-1</link>
+          <description>Water entered homes.</description>
+          <pubDate>Wed, 22 Jul 2026 08:00:00 GMT</pubDate>
+        </item></channel></rss>`)) as unknown as typeof fetch,
+    );
+
+    const result = await connector.poll({
+      cursor: null,
+      endpoint: "https://news.example/feed.xml",
+      signal: new AbortController().signal,
+    });
+
+    expect(result.observations[0]).toMatchObject({
+      canonicalUrl: "https://news.example/story-1",
+      externalId: "story-1",
+      incidentTypeCandidate: "flood",
+    });
   });
 });

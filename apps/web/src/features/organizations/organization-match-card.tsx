@@ -2,7 +2,7 @@ import type { AppRouterClient } from "@my-better-t-app/api/routers/index";
 import { Card, CardContent } from "@my-better-t-app/ui/components/card";
 
 type MatchRecord = Awaited<
-  ReturnType<AppRouterClient["operator"]["match"]["list"]>
+  ReturnType<AppRouterClient["observer"]["match"]["list"]>
 >[number];
 
 export default function OrganizationMatchCard({
@@ -45,10 +45,6 @@ export default function OrganizationMatchCard({
                 ? "Public contact email present"
                 : "No public contact email listed"}
             </dd>
-          </div>
-          <div>
-            <dt className="font-medium">Availability</dt>
-            <dd className="text-muted-foreground">{match.availability}</dd>
           </div>
         </dl>
         <div>

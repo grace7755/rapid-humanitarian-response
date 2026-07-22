@@ -45,11 +45,6 @@
     "check": "biome check --write .",
     "check:ci": "biome check apps/server/src apps/web/src/components apps/web/src/features apps/web/src/routes packages/api/src packages/auth/src packages/db/src packages/env/src package.json turbo.json biome.json"
   },
-  "dependencies": {
-    "@my-better-t-app/env": "workspace:*",
-    "dotenv": "catalog:",
-    "zod": "catalog:"
-  },
   "devDependencies": {
     "@biomejs/biome": "^2.5.2",
     "@my-better-t-app/config": "workspace:*",

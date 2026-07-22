@@ -137,7 +137,7 @@ export default function IncidentForm() {
       setValues(clearConsumedTurnstileToken);
       setFieldErrors((current) => ({
         ...current,
-        turnstileToken: "Complete human verification again before retrying.",
+        turnstileToken: "Complete the anti-abuse check again before retrying.",
       }));
       setTurnstileResetKey(getNextTurnstileResetKey);
       setSubmissionError(
@@ -473,13 +473,13 @@ export default function IncidentForm() {
                 className="mt-2 text-destructive text-sm"
                 id="turnstileToken-error"
               >
-                Complete the human verification before submitting.
+                Complete the anti-abuse check before submitting.
               </p>
             ) : null}
           </div>
         ) : (
           <p className="text-destructive text-sm" id="turnstileToken">
-            Human verification is not configured. The report cannot be
+            Anti-abuse verification is not configured. The report cannot be
             submitted.
           </p>
         )}

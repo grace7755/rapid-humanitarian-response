@@ -5,8 +5,9 @@ const incidentMocks = vi.hoisted(() => ({
   createAutomaticIncident: vi.fn(),
   findIncidentCorrelationCandidates: vi.fn(),
   findUniqueDistrictMention: vi.fn(),
-  getIncidentForOperator: vi.fn(),
+  getIncidentForObserver: vi.fn(),
   recordCommunityReportCorrelation: vi.fn(),
+  startAutonomousVerification: vi.fn(),
   updateIncidentAgentAssessment: vi.fn(),
 }));
 const monitoringMocks = vi.hoisted(() => ({
@@ -31,6 +32,10 @@ vi.mock("@my-better-t-app/db/queries/incidents", () => incidentMocks);
 vi.mock("@my-better-t-app/db/queries/monitoring", () => monitoringMocks);
 vi.mock("@my-better-t-app/db/queries/workflows", () => workflowMocks);
 vi.mock("@my-better-t-app/db/queries/evidence", () => evidenceMocks);
+vi.mock("@my-better-t-app/db/queries/verification", () => ({
+  listVerificationVerdicts: vi.fn(),
+  upsertVerificationVerdict: vi.fn(),
+}));
 vi.mock("@my-better-t-app/env/server", () => ({
   env: { RELIEFWEB_APP_NAME: undefined },
 }));
@@ -41,7 +46,6 @@ import {
   runCorrelationAgent,
   runMonitoringAgent,
   runPriorityAgent,
-  runVerificationAgent,
 } from "./pipeline";
 
 const incidentId = "5d218f2e-ceb8-4c63-b442-385b32328f0a";
@@ -54,10 +58,15 @@ describe("agent assessment revisions", () => {
     vi.clearAllMocks();
     evidenceMocks.listEvidenceForIncident.mockResolvedValue([]);
     workflowMocks.enqueueWorkflowJob.mockResolvedValue({ id: "job" });
+    incidentMocks.startAutonomousVerification.mockResolvedValue({
+      expiresAt: new Date("2026-07-22T14:00:00.000Z"),
+      id: incidentId,
+      revision: 1,
+    });
   });
 
   it("marks a delayed priority write as skipped when approval blocks it", async () => {
-    incidentMocks.getIncidentForOperator.mockResolvedValue({
+    incidentMocks.getIncidentForObserver.mockResolvedValue({
       riskFlags: {
         accessBlocked: false,
         displacement: false,
@@ -71,7 +80,7 @@ describe("agent assessment revisions", () => {
     incidentMocks.updateIncidentAgentAssessment.mockResolvedValue(null);
 
     await expect(
-      runPriorityAgent(context, { incidentId, observationId }),
+      runPriorityAgent(context, { incidentId, revision: 1 }),
     ).resolves.toMatchObject({ skipped: true });
   });
 
@@ -102,33 +111,22 @@ describe("agent assessment revisions", () => {
 
     expect(workflowMocks.enqueueWorkflowJob).toHaveBeenCalledWith(
       expect.objectContaining({
-        idempotencyKey: `verification:${incidentId}:${observationId}`,
+        idempotencyKey: `verification_official:${incidentId}:1`,
+      }),
+    );
+    expect(workflowMocks.enqueueWorkflowJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        idempotencyKey: `verification_humanitarian_news:${incidentId}:1`,
+      }),
+    );
+    expect(workflowMocks.enqueueWorkflowJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        idempotencyKey: `verification_contradiction:${incidentId}:1`,
       }),
     );
     expect(workflowMocks.enqueueWorkflowJob).not.toHaveBeenCalledWith(
       expect.objectContaining({ idempotencyKey: `priority:${incidentId}` }),
     );
-  });
-
-  it("enqueues priority only after verification updates the same revision", async () => {
-    incidentMocks.getIncidentForOperator.mockResolvedValue({
-      district: "Feni",
-      locationText: "Feni",
-      occurredAt: new Date("2026-07-22T08:00:00.000Z"),
-      occurredAtPrecision: "exact",
-    });
-    monitoringMocks.listObservationsForIncident.mockResolvedValue([]);
-    incidentMocks.updateIncidentAgentAssessment.mockResolvedValue({
-      id: incidentId,
-    });
-
-    await runVerificationAgent(context, { incidentId, observationId });
-
-    expect(workflowMocks.enqueueWorkflowJob).toHaveBeenCalledWith({
-      idempotencyKey: `priority:${incidentId}:${observationId}`,
-      jobType: "priority",
-      payload: { incidentId, observationId },
-    });
   });
 
   it("correlates a community report before classification", async () => {

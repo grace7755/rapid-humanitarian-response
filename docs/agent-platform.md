@@ -1,79 +1,45 @@
-# Agent Platform Architecture
+# Autonomous Agent Platform Architecture
 
-The platform handles incidents in Bangladesh. It helps human operators review
-information and prepare a response. It does not command rescue teams or replace
-emergency services.
+The platform is a 24/7 disaster-intelligence and NGO-coordination layer for Bangladesh. It does not dispatch police, fire, or ambulances and never calls 999.
 
 ```mermaid
 flowchart LR
-  Report[Community report] --> Observation[Source observation]
-  Schedule[15-minute scheduler] --> Monitor[Monitoring agent]
-  Monitor --> Observation
-  Observation --> Correlate[Correlation agent]
+  Report[Community report] --> Observe[Observation stream]
+  Feed[Approved public feeds] --> Observe
+  Observe --> Correlate[Correlation agent]
   Correlate --> Classify[Classification agent]
-  Classify --> Verify[Verification agent]
-  Verify --> Priority[Priority agent]
-  Priority --> Review[Human review]
-  Review --> Match[NGO matching agent]
-  Match --> Contact[Separately approved contact]
+  Classify --> Official[Official-source verifier]
+  Classify --> Humanitarian[Humanitarian/news verifier]
+  Classify --> Contradiction[Contradiction verifier]
+  Official --> Consensus[Deterministic consensus gate]
+  Humanitarian --> Consensus
+  Contradiction --> Consensus
+  Consensus -->|Pass| Priority[Priority agent]
+  Consensus -->|Pass| Match[NGO matching agent]
+  Consensus -->|No quorum| Retry[New evidence or retry]
+  Retry -->|Six-hour limit| Expire[Expire without alert]
+  Match --> Notify[Partner notification agent]
+  Notify --> Email[Opted-in partner email]
 ```
 
-## The agent jobs
+## Strict consensus
 
-- **Monitoring** reads an enabled public source.
-- **Correlation** links similar observations to one incident.
-- **Classification** suggests the incident type and structured facts.
-- **Verification** measures whether evidence supports the incident.
-- **Priority** calculates urgency using fixed rules.
-- **NGO matching** suggests up to three reviewed organizations.
+A revision passes only when every verifier role has reported, at least two verifier outputs support it, evidence spans at least two independent domains and source families, confidence is 80 or higher, core facts are present, and no credible contradiction exists. A contradiction vetoes escalation. Every job carries the incident revision so stale results cannot act on newer facts.
 
-The queue stores jobs in PostgreSQL. Jobs have leases, retries, idempotency
-keys, and a dead state. Agent runs store small summaries for operators.
+## Autonomous partner notification
 
-Communication, reporting, and wider voice automation are extension points. They
-are not active agents in this release.
+Only corroborated revisions may be matched. Candidates must be reviewed, have a contact email, and explicitly allow automation. Email is gated by both `AUTONOMOUS_ESCALATION_ENABLED` and `PARTNER_EMAIL_ENABLED`. Provider requests and database records use idempotency keys; signed Resend webhooks record delivered, delayed, bounced, or failed outcomes.
 
-## Human control
+The observer console exposes read operations only. It cannot edit facts, add evidence, change state, generate matches, or send notifications.
 
-- An agent cannot approve facts.
-- New facts or evidence cancel an old approval.
-- Matching is advice only. It cannot contact an organization.
-- Live contact needs approved facts, reviewed contact data, and a pilot district.
-- National emergency services such as 999 are manual-only.
-- Voice calls also need organization consent and a second operator action.
-- Call results contain bounded status data, not transcripts.
+## 999 boundary and value
 
-These switches are `false` unless a builder changes them:
+[Bangladesh Police 999](https://telecom-police.portal.gov.bd/pages/static-pages/695e3b0cc4774958d7b72321) is the 24/7 toll-free government call service for immediate police, fire, and ambulance support. This platform instead addresses fragmented information, cross-source verification, longitudinal situational awareness, NGO discovery, and structured humanitarian alerts. Responders and communities use both: 999 for immediate dispatch; this platform for coordinated, evidence-linked humanitarian response.
 
-```env
-MONITORING_ENABLED=false
-LIVE_OUTREACH_ENABLED=false
-VOICE_ENABLED=false
-```
+## Sources and operations
 
-## Sources
+Connectors support community reports, ReliefWeb, USGS, registered FFWC JSON endpoints, and approved RSS/Atom feeds. Sources are disabled until configured and approved. Broad social-media crawling is not included.
 
-The seed includes disabled entries for community reports, ReliefWeb, Bangladesh
-Flood Forecasting and Warning Centre, and USGS earthquakes. A builder must
-review each source's rules and configuration before enabling it.
+The PostgreSQL queue provides leases, bounded retries, idempotency, dead-job handling, and safe agent summaries. A scheduler calls `GET /internal/cron/monitor` with `Authorization: Bearer <CRON_SECRET>`.
 
-Broad social-media crawling is not included.
-
-## Running the queue
-
-A scheduler may call `GET /internal/cron/monitor` about every 15 minutes. The
-request must include `Authorization: Bearer <CRON_SECRET>`.
-
-When monitoring is disabled, this endpoint can still process jobs created by
-community reports. It does not poll external sources.
-
-## Adding an agent
-
-1. Add its name to the controlled agent-name list.
-2. Define a small, strict job input.
-3. Write a handler that returns a safe summary.
-4. Register the handler with the orchestrator.
-5. Add tests for success, retries, stale data, and forbidden actions.
-
-Keep agents small. Reuse deterministic domain rules. Never place secrets, raw
-reports, contact details, or provider transcripts in job summaries.
+When adding an agent, define a strict input, deterministic safety checks, a bounded output summary, stale-revision behavior, and tests for success, contradiction, retry, duplicate delivery, and forbidden action. Never put secrets, raw reports, or recipient addresses in agent summaries.

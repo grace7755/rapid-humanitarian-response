@@ -1,6 +1,5 @@
 import { Button } from "@my-better-t-app/ui/components/button";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import EmptyState from "@/components/empty-state";
 import LoadingState from "@/components/loading-state";
@@ -18,13 +17,8 @@ function relationshipLabel(relationship: string) {
 }
 
 export default function EvidenceList({ incidentId }: { incidentId: string }) {
-  const queryClient = useQueryClient();
-  const [removeError, setRemoveError] = useState<string | null>(null);
   const evidenceQuery = useQuery(
-    orpc.operator.evidence.list.queryOptions({ input: { incidentId } }),
-  );
-  const removeEvidence = useMutation(
-    orpc.operator.evidence.remove.mutationOptions(),
+    orpc.observer.evidence.list.queryOptions({ input: { incidentId } }),
   );
 
   if (evidenceQuery.isLoading) {
@@ -50,28 +44,11 @@ export default function EvidenceList({ incidentId }: { incidentId: string }) {
   if (!evidenceQuery.data?.length) {
     return (
       <EmptyState
-        description="Add at least one public supporting source before facts can be approved."
+        description="No public source observation has been linked to this incident yet."
         title="No evidence listed"
       />
     );
   }
-
-  const remove = async (evidenceId: string) => {
-    if (
-      !window.confirm(
-        "Remove this evidence record? Stored scores will remain unchanged until explicit recalculation.",
-      )
-    ) {
-      return;
-    }
-    setRemoveError(null);
-    try {
-      await removeEvidence.mutateAsync({ evidenceId, incidentId });
-      await queryClient.invalidateQueries();
-    } catch {
-      setRemoveError("Evidence could not be removed. Reload and retry.");
-    }
-  };
 
   return (
     <div className="space-y-3">
@@ -98,22 +75,14 @@ export default function EvidenceList({ incidentId }: { incidentId: string }) {
                 {item.publisherDomain}
               </a>
             </div>
-            <Button
-              className="min-h-11 shrink-0"
-              disabled={removeEvidence.isPending}
-              onClick={() => remove(item.id)}
-              variant="outline"
-            >
-              Remove
-            </Button>
           </div>
           <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
             <div>
               <dt className="font-medium">Independent source</dt>
               <dd className="text-muted-foreground">
                 {item.isIndependent
-                  ? "Yes — operator confirmed"
-                  : "No / not confirmed"}
+                  ? "Yes — distinct publisher and content"
+                  : "No — duplicate or community-only source"}
               </dd>
             </div>
             <div>
@@ -132,14 +101,6 @@ export default function EvidenceList({ incidentId }: { incidentId: string }) {
           ) : null}
         </article>
       ))}
-      {removeError ? (
-        <p className="text-destructive text-sm" role="alert">
-          {removeError}
-        </p>
-      ) : null}
-      <p aria-live="polite" className="text-muted-foreground text-sm">
-        {removeEvidence.isPending ? "Removing evidence." : ""}
-      </p>
     </div>
   );
 }

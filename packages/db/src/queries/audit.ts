@@ -1,5 +1,3 @@
-import { asc, eq } from "drizzle-orm";
-
 import { db } from "../index.js";
 import { auditEvents, type NewAuditEvent } from "../schema/index.js";
 
@@ -14,18 +12,4 @@ export async function insertAuditEvent(input: InsertAuditEvent) {
   });
 
   return created;
-}
-
-export async function listAuditTimeline(incidentId: string) {
-  return db
-    .select({
-      id: auditEvents.id,
-      actorUserId: auditEvents.actorUserId,
-      eventType: auditEvents.eventType,
-      metadata: auditEvents.metadata,
-      createdAt: auditEvents.createdAt,
-    })
-    .from(auditEvents)
-    .where(eq(auditEvents.incidentId, incidentId))
-    .orderBy(asc(auditEvents.createdAt));
 }

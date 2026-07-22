@@ -12,11 +12,11 @@ import { useNavigate } from "@tanstack/react-router";
 
 import { authClient } from "@/lib/auth-client";
 
-export type OperatorSession = NonNullable<
+export type ObserverSession = NonNullable<
   Awaited<ReturnType<typeof authClient.getSession>>["data"]
 >;
 
-export default function UserMenu({ session }: { session: OperatorSession }) {
+export default function UserMenu({ session }: { session: ObserverSession }) {
   const navigate = useNavigate();
 
   return (

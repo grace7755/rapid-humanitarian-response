@@ -16,11 +16,12 @@ Thank you for helping.
 - Never commit `.env` files, passwords, tokens, or database URLs.
 - Use fake people and `.example` websites in tests.
 - Do not publish private incident information in an issue or pull request.
-- Do not remove human approval from fact or contact actions.
-- Do not describe a suggested organization as available unless a human confirms it.
+- Do not weaken the independent-source quorum, contradiction veto, stale-revision checks, or six-hour expiry.
+- Never allow the platform to call 999 or claim to dispatch emergency services.
+- Do not notify an organization unless its record is reviewed and automation consent is enabled.
 - Explain the public source for any proposed real organization record.
 
 ## Pull requests
 
 Keep the title short. Explain what changed, why it helps, and which commands you
-ran. A safety-sensitive change should say how it keeps human control.
+ran. A safety-sensitive change should explain how it preserves autonomous confidence gates, partner consent, and delivery idempotency.

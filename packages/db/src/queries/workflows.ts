@@ -1,4 +1,4 @@
-import { and, desc, eq, lte, or, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 
 import { db } from "../index.js";
 import {
@@ -142,23 +142,4 @@ export async function listRecentAgentRuns(limit = 50) {
     .from(agentRuns)
     .orderBy(desc(agentRuns.startedAt))
     .limit(Math.max(1, Math.min(limit, 100)));
-}
-
-export async function countAvailableWorkflowJobs() {
-  const [row] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(workflowJobs)
-    .where(
-      and(
-        or(
-          eq(workflowJobs.status, "pending"),
-          and(
-            eq(workflowJobs.status, "running"),
-            lte(workflowJobs.lockedUntil, new Date()),
-          ),
-        ),
-        lte(workflowJobs.availableAt, new Date()),
-      ),
-    );
-  return row?.count ?? 0;
 }

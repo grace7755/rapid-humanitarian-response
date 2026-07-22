@@ -93,7 +93,7 @@ export const agentRuns = pgTable(
     ),
     check(
       "agent_runs_name_check",
-      sql`${table.agentName} in ('monitoring', 'correlation', 'classification', 'verification', 'priority', 'communication', 'voice', 'ngo_matching', 'reporting')`,
+      sql`${table.agentName} in ('monitoring', 'correlation', 'classification', 'verification_official', 'verification_humanitarian_news', 'verification_contradiction', 'verification_consensus', 'priority', 'communication', 'ngo_matching', 'partner_notification', 'reporting')`,
     ),
     check(
       "agent_runs_status_check",

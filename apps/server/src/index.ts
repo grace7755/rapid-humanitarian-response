@@ -6,9 +6,15 @@ import { createContext } from "@my-better-t-app/api/context";
 import { publicErrorBody } from "@my-better-t-app/api/errors";
 import { appRouter } from "@my-better-t-app/api/routers/index";
 import { recordSafeError } from "@my-better-t-app/api/services/logging";
-import { contactOutcomeStatus } from "@my-better-t-app/api/services/vapi";
+import {
+  notificationStatusFromResendEvent,
+  verifyResendWebhook,
+} from "@my-better-t-app/api/services/resend-webhook";
 import { auth } from "@my-better-t-app/auth";
-import { recordContactAttemptOutcome } from "@my-better-t-app/db/queries/contact-attempts";
+import {
+  claimNotificationWebhookEvent,
+  recordPartnerNotificationEvent,
+} from "@my-better-t-app/db/queries/notifications";
 import { env } from "@my-better-t-app/env/server";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
@@ -21,7 +27,6 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { requestId } from "hono/request-id";
-import { z } from "zod";
 
 initLogger({
   env: { service: "rapid-humanitarian-response-server" },
@@ -67,40 +72,39 @@ app.get("/internal/cron/monitor", async (c) => {
   return c.json({ ...result, status: "completed" as const });
 });
 
-const vapiWebhookSchema = z
-  .object({
-    message: z
-      .object({
-        call: z.object({ id: z.string() }).passthrough(),
-        durationSeconds: z.number().optional(),
-        endedReason: z.string().optional(),
-        type: z.string(),
-      })
-      .passthrough(),
-  })
-  .passthrough();
-
-app.post("/webhooks/vapi", async (c) => {
-  if (!env.VAPI_WEBHOOK_SECRET) {
+app.post("/webhooks/resend", async (c) => {
+  if (!env.RESEND_WEBHOOK_SECRET) {
     return c.json({ error: { code: "WEBHOOK_NOT_CONFIGURED" } }, 503);
   }
-  const suppliedSecret =
-    c.req.header("x-vapi-secret") ??
-    c.req.header("authorization")?.replace(/^Bearer\s+/i, "");
-  if (suppliedSecret !== env.VAPI_WEBHOOK_SECRET) {
-    return c.json({ error: { code: "UNAUTHORIZED" } }, 401);
+  const id = c.req.header("svix-id");
+  const timestamp = c.req.header("svix-timestamp");
+  const signature = c.req.header("svix-signature");
+  if (!id || !timestamp || !signature) {
+    return c.json({ error: { code: "INVALID_WEBHOOK" } }, 400);
   }
-  const event = vapiWebhookSchema.parse(await c.req.json());
-  if (event.message.type === "end-of-call-report") {
-    await recordContactAttemptOutcome(event.message.call.id, {
-      outcome: {
-        durationSeconds: event.message.durationSeconds ?? null,
-        endedReason: event.message.endedReason ?? null,
-      },
-      status: contactOutcomeStatus(event.message.endedReason),
+  try {
+    const payload = await c.req.text();
+    const event = await verifyResendWebhook({
+      id,
+      payload,
+      secret: env.RESEND_WEBHOOK_SECRET,
+      signature,
+      timestamp,
     });
+    const claimed = await claimNotificationWebhookEvent(id, event.type);
+    if (!claimed) return c.json({ duplicate: true, received: true });
+    const status = notificationStatusFromResendEvent(event.type);
+    if (status) {
+      await recordPartnerNotificationEvent({
+        outcome: { eventCreatedAt: event.created_at, eventType: event.type },
+        providerMessageId: event.data.email_id,
+        status,
+      });
+    }
+    return c.json({ received: true });
+  } catch {
+    return c.json({ error: { code: "INVALID_WEBHOOK" } }, 400);
   }
-  return c.json({ received: true });
 });
 
 app.use(

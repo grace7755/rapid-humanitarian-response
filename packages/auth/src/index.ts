@@ -7,10 +7,10 @@ import { createAuthMiddleware } from "better-auth/api";
 
 import {
   getEmailFromRequestBody,
-  requireAllowlistedOperatorEmail,
+  requireAllowlistedObserverEmail,
 } from "./allowlist.js";
 
-export function createAuth() {
+function createAuth() {
   const db = createDb();
 
   return betterAuth({
@@ -28,9 +28,9 @@ export function createAuth() {
       before: createAuthMiddleware(async (context) => {
         if (context.path !== "/sign-up/email") return;
 
-        requireAllowlistedOperatorEmail(
+        requireAllowlistedObserverEmail(
           getEmailFromRequestBody(context.body),
-          env.OPERATOR_EMAIL_ALLOWLIST,
+          env.OBSERVER_EMAIL_ALLOWLIST,
         );
       }),
     },

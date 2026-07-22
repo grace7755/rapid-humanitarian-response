@@ -1,88 +1,46 @@
 # Rapid Humanitarian Response Platform
 
-This is a free, open-source disaster response project for Bangladesh.
+An open-source, AI-first disaster intelligence and humanitarian coordination platform for Bangladesh. It continuously combines community reports with approved public sources, uses independent verifier agents to cross-check incidents, and automatically emails relevant opted-in NGOs only after strict consensus.
 
-It helps people share emergency reports. It also helps trained people check
-the reports and find groups that may be able to help.
+## 999 versus this platform
 
-## Important safety message
+Bangladesh **999** is the government emergency call service operated by Bangladesh Police. It is toll-free, available 24/7, and coordinates immediate police, fire, and ambulance support. See the [official Bangladesh Police 999 page](https://telecom-police.portal.gov.bd/pages/static-pages/695e3b0cc4774958d7b72321).
 
-This app does **not** replace Bangladesh emergency service **999**.
+This platform is not a dispatch service and never calls 999. It adds a different layer:
 
-If someone is in danger, call 999 or contact local emergency workers. Do not
-wait for this app. The app cannot promise that help will arrive.
+- correlates fragmented reports and public feeds into shared incidents;
+- verifies claims across official, humanitarian, news, and contradiction sources;
+- gives responders an evidence-linked operating picture over time;
+- matches corroborated needs to reviewed, consented NGO partners;
+- sends structured, idempotent partner alerts without waiting for per-incident review.
 
-## How does it work?
+People should call **999 for immediate danger**. Communities, responders, and NGOs use this platform in addition to 999 for wider situational awareness, cross-organization coordination, and needs that require sustained humanitarian action rather than immediate dispatch.
 
-Think of an AI agent as a small helper inside the app. Each helper has one job.
+## Autonomous confidence gate
 
-1. A person reports a flood, fire, cyclone, earthquake, landslide, or another
-   emergency.
-2. The app can also read approved public information sources.
-3. Small helpers compare the information and look for matching reports.
-4. They suggest the disaster type and how urgent it may be.
-5. A human checks the facts and evidence.
-6. After approval, the app suggests trusted help groups.
+Three verifier roles run independently: official sources, humanitarian/news sources, and contradiction detection. Escalation requires all of the following:
 
-An NGO is a group that helps people but is not part of the government.
+- consensus confidence of at least 80;
+- support from at least two verifier outputs;
+- at least two independent publisher domains and source families;
+- a usable location, incident type, and occurrence time;
+- no credible contradiction.
 
-AI cannot approve an incident. A human must make important decisions.
-Calls to emergency services, including 999, are always manual.
+If quorum is missing, jobs retry when new evidence arrives. After six hours the revision expires without sending an alert. The authenticated console is read-only; source approval, partner review, and partner consent are deployment governance, not incident decisions.
 
-## What is already built?
+## Current capabilities
 
-- A public emergency report form.
-- A private dashboard for approved workers.
-- Helpers that monitor, group, classify, verify, and rank reports.
-- Checks for evidence, confidence, and urgency.
-- Suggestions for up to three reviewed help groups.
-- A work queue that can retry failed jobs.
-- Safe voice-call code for future approved tests.
-- Safety switches that are off by default.
+- Anonymous, non-identifying community report form.
+- Monitoring connectors for ReliefWeb, USGS, FFWC JSON endpoints, and approved RSS/Atom feeds.
+- Correlation, classification, three-way verification, consensus, urgency, and NGO matching agents.
+- PostgreSQL work queue with leases, retries, stale-revision protection, and idempotency.
+- Automatic partner email through Resend, with signed delivery webhooks.
+- Read-only observer console for incidents, evidence, verdicts, matches, agent runs, and delivery status.
+- Safety switches disabled by default. No automated calls, including to 999.
 
-The app can check for new public information about every 15 minutes when a
-builder turns monitoring on and connects a scheduler.
+## Developer setup
 
-## What is not built yet?
-
-These features can be added by future contributors:
-
-- More approved information sources.
-- Communication and summary helpers.
-- Wider voice calling.
-- Support for countries outside Bangladesh.
-
-## Safety rules
-
-- Never use this app as your only way to ask for help.
-- Do not share private medical files, identity cards, faces, or exact home
-  addresses.
-- Check every organization and contact before using it.
-- Keep live monitoring and calling off while testing.
-- Treat every AI answer as a suggestion that a trained person must check.
-
-More technical safety details are in
-[the agent guide](docs/agent-platform.md).
-
----
-
-## Setup for developers
-
-The rest of this page explains how to run the project on a computer.
-
-### 1. Install Bun
-
-Bun installs and runs the project code.
-
-```bash
-bun --version
-```
-
-If this command fails, install Bun from <https://bun.sh>.
-
-### 2. Download the project
-
-A fork is your own copy of a GitHub project. You can fork this project or run:
+Requirements: [Bun](https://bun.sh) and PostgreSQL (the project is configured for Neon).
 
 ```bash
 git clone https://github.com/grace7755/rapid-humanitarian-response.git
@@ -90,110 +48,42 @@ cd rapid-humanitarian-response
 bun install
 ```
 
-### 3. Create settings files
+Copy `apps/server/.env.example` to `apps/server/.env` and `apps/web/.env.example` to `apps/web/.env`. Important server variables:
 
-Copy these example files:
+- `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `CORS_ORIGIN`
+- `OBSERVER_EMAIL_ALLOWLIST` for authenticated read-only console access
+- `CRON_SECRET`, `MONITORING_ENABLED`
+- `AUTONOMOUS_ESCALATION_ENABLED`, `PARTNER_EMAIL_ENABLED`
+- `RESEND_API_KEY`, `PARTNER_ALERT_FROM`, `RESEND_WEBHOOK_SECRET`
+- `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `RELIEFWEB_APP_NAME`
 
-```text
-apps/server/.env.example  -> apps/server/.env
-apps/web/.env.example     -> apps/web/.env
-```
-
-These `.env` files hold private settings. Git ignores them. Never upload them.
-
-Main server settings:
-
-- `DATABASE_URL`: the private address of your Neon database.
-- `BETTER_AUTH_SECRET`: a random secret with at least 32 characters.
-- `BETTER_AUTH_URL=http://localhost:3000/api/auth`
-- `CORS_ORIGIN=http://localhost:3001`
-- `OPERATOR_EMAIL_ALLOWLIST`: emails allowed to use the private dashboard.
-
-Main web setting:
-
-- `VITE_SERVER_URL=http://localhost:3000`
-
-Turnstile is optional for local work but required for a production build.
-OpenRouter, ReliefWeb, Vapi, and live monitoring are also optional.
-
-Keep these switches off during normal testing:
+Keep outbound behavior off during local development:
 
 ```env
 MONITORING_ENABLED=false
-LIVE_OUTREACH_ENABLED=false
-VOICE_ENABLED=false
+AUTONOMOUS_ESCALATION_ENABLED=false
+PARTNER_EMAIL_ENABLED=false
 ```
 
-### 4. Prepare the database
-
-A database is where the app saves information.
-
-Create a Neon database and place its private address in `apps/server/.env`.
-Then run:
+Prepare and run:
 
 ```bash
 bun run db:migrate
 bun run db:seed
-```
-
-The seed command adds Bangladesh places, disabled public sources, and one fake
-help group. It does not add a real emergency contact.
-
-### 5. Start the app
-
-```bash
 bun run dev
 ```
 
-Open:
+The scheduler may call `GET /internal/cron/monitor` every 15 minutes with `Authorization: Bearer <CRON_SECRET>`. Community-report jobs can still be processed when external monitoring is disabled.
 
-- Web app: <http://localhost:3001>
-- Server: <http://localhost:3000>
-
-## Automatic monitoring
-
-A scheduler is a timer for computer tasks. It can call this protected address
-about every 15 minutes:
-
-```text
-GET /internal/cron/monitor
-Authorization: Bearer YOUR_CRON_SECRET
-```
-
-Public sources are read only when `MONITORING_ENABLED=true`. Reports sent by
-people can still move through the work queue while monitoring is off.
-
-## Useful commands
+## Quality checks
 
 ```bash
-bun run dev          # Start the app
-bun run check:ci     # Check code style
-bun run check-types  # Check TypeScript code
-bun run test         # Run tests
-bun run build        # Build the project
-bun run db:migrate   # Prepare database tables
-bun run db:seed      # Add safe starter data
-bun run db:studio    # Open the database viewer
+bun run check:ci
+bun run check-types
+bun run test
+bun run build
 ```
 
-## Project folders
+See [the agent architecture](docs/agent-platform.md), [contribution guidance](CONTRIBUTING.md), and [security policy](SECURITY.md).
 
-```text
-apps/web/       pages and forms
-apps/server/    the web server
-packages/api/   agents, rules, and app doorways
-packages/auth/  sign-in and access rules
-packages/db/    saved data and database tools
-packages/env/   settings checks
-packages/ui/    shared screen parts
-```
-
-An API is a safe doorway that lets two parts of an app talk to each other.
-
-## Help improve the project
-
-You may fork, study, and improve this project. Start with
-[CONTRIBUTING.md](CONTRIBUTING.md). Read [SECURITY.md](SECURITY.md) before
-reporting a safety or privacy problem.
-
-This project uses the [Apache License 2.0](LICENSE).
+Licensed under [Apache License 2.0](LICENSE).

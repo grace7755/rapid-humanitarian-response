@@ -81,7 +81,7 @@ export default function TurnstileWidget({
 
   return (
     <fieldset aria-describedby={errorId}>
-      <legend className="sr-only">Human verification</legend>
+      <legend className="sr-only">Anti-abuse verification</legend>
       <div ref={containerRef} />
     </fieldset>
   );

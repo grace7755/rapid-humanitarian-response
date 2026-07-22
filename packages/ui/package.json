@@ -6,9 +6,7 @@
   "exports": {
     "./globals.css": "./src/styles/globals.css",
     "./lib/*": "./src/lib/*.ts",
-    "./components/*": "./src/components/*.tsx",
-    "./hooks/*": "./src/hooks/*.ts",
-    "./postcss.config": "./postcss.config.mjs"
+    "./components/*": "./src/components/*.tsx"
   },
   "scripts": {
     "check-types": "tsc --noEmit"
@@ -28,7 +26,6 @@
   },
   "devDependencies": {
     "@my-better-t-app/config": "workspace:*",
-    "@tailwindcss/postcss": "^4.3.2",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "tailwindcss": "catalog:",

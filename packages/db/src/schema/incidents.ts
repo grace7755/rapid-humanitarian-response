@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import {
-  boolean,
   check,
   index,
   integer,
@@ -12,7 +11,6 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { user } from "./auth.js";
 import { administrativeAreas } from "./locations.js";
 
 export type IncidentRiskFlags = {
@@ -67,14 +65,14 @@ export const incidents = pgTable(
     urgencyScore: integer("urgency_score").default(0).notNull(),
     state: text("state").default("submitted").notNull(),
     verificationStatus: text("verification_status")
-      .default("unverified")
+      .default("pending")
       .notNull(),
-    priorityLevel: text("priority_level").default("P3").notNull(),
-    factsApproved: boolean("facts_approved").default(false).notNull(),
-    reviewedByUserId: text("reviewed_by_user_id").references(() => user.id, {
-      onDelete: "set null",
+    verificationRevision: integer("verification_revision").default(0).notNull(),
+    verificationExpiresAt: timestamp("verification_expires_at", {
+      withTimezone: true,
     }),
-    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    consensusAt: timestamp("consensus_at", { withTimezone: true }),
+    priorityLevel: text("priority_level").default("P3").notNull(),
     modelId: text("model_id"),
     extractionStatus: text("extraction_status").default("pending").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -92,11 +90,11 @@ export const incidents = pgTable(
     index("incidents_updated_at_idx").on(table.updatedAt),
     check(
       "incidents_source_type_check",
-      sql`${table.sourceType} in ('community', 'manual', 'reliefweb')`,
+      sql`${table.sourceType} in ('community', 'reliefweb')`,
     ),
     check(
       "incidents_origin_check",
-      sql`${table.origin} in ('user_report', 'automatic', 'operator')`,
+      sql`${table.origin} in ('user_report', 'automatic')`,
     ),
     check(
       "incidents_incident_type_check",
@@ -121,11 +119,11 @@ export const incidents = pgTable(
     ),
     check(
       "incidents_state_check",
-      sql`${table.state} in ('submitted', 'reviewing', 'corroborated', 'outreach_ready', 'contact_attempted', 'closed', 'rejected')`,
+      sql`${table.state} in ('submitted', 'verifying', 'corroborated', 'escalation_ready', 'notified', 'inconclusive', 'contradicted', 'closed')`,
     ),
     check(
       "incidents_verification_status_check",
-      sql`${table.verificationStatus} in ('unverified', 'agent_review', 'agent_corroborated', 'operator_approved', 'contradicted', 'rejected')`,
+      sql`${table.verificationStatus} in ('pending', 'corroborated', 'inconclusive', 'contradicted', 'expired')`,
     ),
     check(
       "incidents_priority_level_check",

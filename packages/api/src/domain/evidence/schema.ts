@@ -32,5 +32,3 @@ export const evidenceRemoveInputSchema = z
     incidentId: z.uuid(),
   })
   .strict();
-
-export type EvidenceCreateInput = z.infer<typeof evidenceCreateInputSchema>;

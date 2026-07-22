@@ -11,12 +11,16 @@ import {
 import type { AgentName } from "./contracts.js";
 import { safeErrorCode } from "./errors.js";
 import { runNgoMatchingAgent } from "./ngo-matching.js";
+import { runPartnerNotificationAgent } from "./partner-notification.js";
 import {
   runClassificationAgent,
+  runContradictionVerificationAgent,
   runCorrelationAgent,
+  runHumanitarianNewsVerificationAgent,
   runMonitoringAgent,
+  runOfficialVerificationAgent,
   runPriorityAgent,
-  runVerificationAgent,
+  runVerificationConsensusAgent,
 } from "./pipeline.js";
 
 const supportedJobs = {
@@ -24,15 +28,19 @@ const supportedJobs = {
   correlation: runCorrelationAgent,
   monitoring: runMonitoringAgent,
   ngo_matching: runNgoMatchingAgent,
+  partner_notification: runPartnerNotificationAgent,
   priority: runPriorityAgent,
-  verification: runVerificationAgent,
+  verification_consensus: runVerificationConsensusAgent,
+  verification_contradiction: runContradictionVerificationAgent,
+  verification_humanitarian_news: runHumanitarianNewsVerificationAgent,
+  verification_official: runOfficialVerificationAgent,
 } as const;
 
 function incidentIdFromPayload(payload: Record<string, unknown>) {
   return typeof payload.incidentId === "string" ? payload.incidentId : null;
 }
 
-export async function enqueueMonitoringSweep(now = new Date()) {
+async function enqueueMonitoringSweep(now = new Date()) {
   const sources = await listEnabledMonitoringSources();
   const fifteenMinuteBucket = Math.floor(now.getTime() / (15 * 60 * 1_000));
   let enqueued = 0;

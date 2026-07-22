@@ -16,12 +16,6 @@ export const PILOT_DISTRICTS = [
   "Other or Unknown",
 ] as const;
 
-export const INCIDENT_SOURCE_TYPES = [
-  "community",
-  "manual",
-  "reliefweb",
-] as const;
-
 export const INCIDENT_TYPES = [
   "flood",
   "landslide",
@@ -113,43 +107,40 @@ export const ORGANIZATION_REVIEW_STATUSES = [
   "do_not_contact",
 ] as const;
 
-export const EXTRACTION_STATUSES = ["pending", "complete", "failed"] as const;
-
-export const CASE_STATES = [
+export const AUTONOMOUS_CASE_STATES = [
   "submitted",
-  "reviewing",
+  "verifying",
   "corroborated",
-  "outreach_ready",
-  "contact_attempted",
+  "escalation_ready",
+  "notified",
+  "inconclusive",
+  "contradicted",
   "closed",
-  "rejected",
 ] as const;
 
-export const OUTREACH_STATUSES = [
-  "draft",
-  "copied",
-  "mailto_opened",
-  "contact_attempted",
+export const VERIFICATION_STATUSES = [
+  "pending",
+  "corroborated",
+  "inconclusive",
+  "contradicted",
+  "expired",
 ] as const;
+
+export const CASE_STATES = AUTONOMOUS_CASE_STATES;
 
 export const AUDIT_EVENT_NAMES = [
   "report.created",
   "extraction.started",
   "extraction.completed",
   "extraction.failed",
-  "incident.edited",
-  "incident.review_started",
-  "incident.facts_approved",
   "evidence.added",
-  "evidence.removed",
+  "verification.completed",
+  "verification.expired",
   "scores.calculated",
   "matches.generated",
-  "outreach.generated",
-  "outreach.subject_copied",
-  "outreach.body_copied",
-  "outreach.mailto_opened",
-  "outreach.contact_attempt_confirmed",
+  "partner_notification.sent",
+  "partner_notification.delivered",
+  "partner_notification.failed",
   "incident.state_changed",
+  "legacy.human_action",
 ] as const;
-
-export const INCIDENT_REFERENCE_PREFIX = "RHR" as const;

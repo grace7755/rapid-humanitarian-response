@@ -17,7 +17,7 @@ function displayLabel(value: string) {
 
 export default function OrganizationList() {
   const organizationsQuery = useQuery(
-    orpc.operator.organization.list.queryOptions({ input: {} }),
+    orpc.observer.organization.list.queryOptions({ input: {} }),
   );
 
   if (organizationsQuery.isLoading) {

@@ -23,25 +23,26 @@ describe("safe audit metadata", () => {
     });
   });
 
-  it("accepts only a bounded changed-field summary for incident edits", () => {
+  it("accepts bounded autonomous verification transitions", () => {
     expect(
       auditRecordSchema.parse({
-        actorUserId: "operator-id",
-        eventType: "incident.edited",
+        actorUserId: null,
+        eventType: "verification.completed",
         incidentId: "5d218f2e-ceb8-4c63-b442-385b32328f0a",
         metadata: {
-          changedFields: "affectedEstimate,needs,title",
+          confidenceScore: 84,
+          newState: "corroborated",
+          oldState: "verifying",
         },
       }),
     ).toMatchObject({
-      metadata: { changedFields: "affectedEstimate,needs,title" },
+      metadata: { confidenceScore: 84, newState: "corroborated" },
     });
   });
 
   it("accepts only bounded score summaries for generated matches", () => {
     expect(
       auditRecordSchema.parse({
-        actorUserId: "operator-id",
         eventType: "matches.generated",
         incidentId: "5d218f2e-ceb8-4c63-b442-385b32328f0a",
         metadata: {

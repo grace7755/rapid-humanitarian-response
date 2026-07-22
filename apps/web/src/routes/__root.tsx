@@ -15,7 +15,7 @@ import type { orpc } from "@/utils/orpc";
 
 import "../index.css";
 
-export interface RouterAppContext {
+interface RouterAppContext {
   orpc: typeof orpc;
   queryClient: QueryClient;
 }
@@ -30,7 +30,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
       {
         name: "description",
         content:
-          "A human-guided disaster reporting and response coordination platform for Bangladesh.",
+          "An autonomous, multi-agent disaster verification and humanitarian coordination platform for Bangladesh.",
       },
     ],
   }),

@@ -7,14 +7,13 @@ import {
   incidents,
   type NewIncident,
   sourceObservations,
-  workflowJobs,
 } from "../schema/index.js";
 import { insertSourceObservationAndEnqueueCorrelation } from "./monitoring.js";
 
 export type CreateRawIncidentInput = {
   rawReport: string;
   reference?: string;
-  sourceType?: "community" | "manual";
+  sourceType?: "community";
   sourceUrl?: string | null;
 };
 
@@ -89,6 +88,9 @@ export async function listIncidents(filters: IncidentListFilters = {}) {
       confidenceScore: incidents.confidenceScore,
       priorityLevel: incidents.priorityLevel,
       verificationStatus: incidents.verificationStatus,
+      verificationRevision: incidents.verificationRevision,
+      verificationExpiresAt: incidents.verificationExpiresAt,
+      consensusAt: incidents.consensusAt,
       urgencyScore: incidents.urgencyScore,
       state: incidents.state,
       extractionStatus: incidents.extractionStatus,
@@ -101,7 +103,7 @@ export async function listIncidents(filters: IncidentListFilters = {}) {
     .limit(100);
 }
 
-export async function getIncidentForOperator(incidentId: string) {
+export async function getIncidentForObserver(incidentId: string) {
   const [incident] = await db
     .select({
       id: incidents.id,
@@ -129,10 +131,10 @@ export async function getIncidentForOperator(incidentId: string) {
       urgencyScore: incidents.urgencyScore,
       state: incidents.state,
       verificationStatus: incidents.verificationStatus,
+      verificationRevision: incidents.verificationRevision,
+      verificationExpiresAt: incidents.verificationExpiresAt,
+      consensusAt: incidents.consensusAt,
       priorityLevel: incidents.priorityLevel,
-      factsApproved: incidents.factsApproved,
-      reviewedByUserId: incidents.reviewedByUserId,
-      reviewedAt: incidents.reviewedAt,
       modelId: incidents.modelId,
       extractionStatus: incidents.extractionStatus,
       createdAt: incidents.createdAt,
@@ -145,310 +147,91 @@ export async function getIncidentForOperator(incidentId: string) {
   return incident ?? null;
 }
 
-export type IncidentReviewUpdate = Partial<
-  Pick<
-    NewIncident,
-    | "affectedEstimate"
-    | "district"
-    | "incidentType"
-    | "locationText"
-    | "needs"
-    | "occurredAt"
-    | "occurredAtPrecision"
-    | "riskFlags"
-    | "summary"
-    | "title"
-    | "unknowns"
-  >
->;
-
-export async function updateIncidentReview(
-  incidentId: string,
-  values: IncidentReviewUpdate,
-  reviewerUserId: string,
-  changedFields: string,
-) {
-  const now = new Date();
-  const updateIncident = db
-    .update(incidents)
-    .set({
-      ...values,
-      factsApproved: false,
-      reviewedByUserId: reviewerUserId,
-      reviewedAt: now,
-      state: sql`case when ${incidents.factsApproved} and ${incidents.state} in ('corroborated', 'outreach_ready', 'contact_attempted') then 'reviewing' else ${incidents.state} end`,
-      updatedAt: now,
-      verificationStatus: "agent_review",
-    })
-    .where(eq(incidents.id, incidentId))
-    .returning({ id: incidents.id, updatedAt: incidents.updatedAt });
-
-  const insertAuditEvent = db
-    .insert(auditEvents)
-    .select(
-      sql`
-        select
-          gen_random_uuid(),
-          ${incidentId}::uuid,
-          ${reviewerUserId},
-          'incident.edited',
-          ${JSON.stringify({ changedFields })}::jsonb,
-          now()
-        from incidents
-        where id = ${incidentId}::uuid
-          and updated_at = ${now}
-          and reviewed_by_user_id = ${reviewerUserId}
-      `,
-    )
-    .returning({ id: auditEvents.id });
-
-  const [updatedRows] = await db.batch([updateIncident, insertAuditEvent]);
-  const [updated] = updatedRows;
-  return updated ?? null;
-}
-
-export async function updateIncidentState(
-  incidentId: string,
-  fromState: string,
-  toState: string,
-  actorUserId: string,
-) {
-  const now = new Date();
-  const updateIncident = db
-    .update(incidents)
-    .set({ state: toState, updatedAt: now })
-    .where(and(eq(incidents.id, incidentId), eq(incidents.state, fromState)))
-    .returning({ id: incidents.id, state: incidents.state });
-
-  const insertAuditEvent = db
-    .insert(auditEvents)
-    .select(
-      sql`
-        select
-          gen_random_uuid(),
-          ${incidentId}::uuid,
-          ${actorUserId},
-          'incident.state_changed',
-          ${JSON.stringify({ newState: toState, oldState: fromState })}::jsonb,
-          now()
-        from incidents
-        where id = ${incidentId}::uuid
-          and state = ${toState}
-          and updated_at = ${now}
-      `,
-    )
-    .returning({ id: auditEvents.id });
-
-  const [updatedRows] = await db.batch([updateIncident, insertAuditEvent]);
-  const [updated] = updatedRows;
-  return updated ?? null;
-}
-
-export async function startIncidentReview(
-  incidentId: string,
-  reviewerUserId: string,
-) {
-  const now = new Date();
-  const updateIncident = db
-    .update(incidents)
-    .set({
-      reviewedAt: now,
-      reviewedByUserId: reviewerUserId,
-      state: "reviewing",
-      updatedAt: now,
-    })
-    .where(and(eq(incidents.id, incidentId), eq(incidents.state, "submitted")))
-    .returning({ id: incidents.id, state: incidents.state });
-
-  const insertAuditEvents = db
-    .insert(auditEvents)
-    .select(
-      sql`
-        select
-          gen_random_uuid(),
-          ${incidentId}::uuid,
-          ${reviewerUserId},
-          event.event_type,
-          event.metadata,
-          now()
-        from incidents
-        cross join (
-          values
-            ('incident.review_started', '{}'::jsonb),
-            (
-              'incident.state_changed',
-              ${JSON.stringify({
-                newState: "reviewing",
-                oldState: "submitted",
-              })}::jsonb
-            )
-        ) as event(event_type, metadata)
-        where id = ${incidentId}::uuid
-          and state = 'reviewing'
-          and updated_at = ${now}
-          and reviewed_by_user_id = ${reviewerUserId}
-      `,
-    )
-    .returning({ id: auditEvents.id });
-
-  const [updatedRows] = await db.batch([updateIncident, insertAuditEvents]);
-  const [updated] = updatedRows;
-  return updated ?? null;
-}
-
-export async function approveIncidentFacts(
-  incidentId: string,
-  reviewerUserId: string,
-  scores: { confidenceScore: number; urgencyScore: number },
-) {
-  const now = new Date();
-  const matchingJobKey = `ngo_matching:${incidentId}:${now.toISOString()}`;
-  const updateIncident = db
-    .update(incidents)
-    .set({
-      confidenceScore: scores.confidenceScore,
-      factsApproved: true,
-      reviewedAt: now,
-      reviewedByUserId: reviewerUserId,
-      state: "corroborated",
-      verificationStatus: "operator_approved",
-      updatedAt: now,
-      urgencyScore: scores.urgencyScore,
-    })
-    .where(
-      and(
-        eq(incidents.id, incidentId),
-        eq(incidents.state, "reviewing"),
-        eq(incidents.factsApproved, false),
-      ),
-    )
-    .returning({
-      factsApproved: incidents.factsApproved,
-      id: incidents.id,
-    });
-
-  const insertAuditEvents = db.insert(auditEvents).select(
-    sql`
-        select
-          gen_random_uuid(),
-          ${incidentId}::uuid,
-          ${reviewerUserId},
-          event.event_type,
-          event.metadata,
-          now()
-        from incidents
-        cross join (
-          values
-            (
-              'scores.calculated',
-              ${JSON.stringify(scores)}::jsonb
-            ),
-            (
-              'incident.facts_approved',
-              '{}'::jsonb
-            ),
-            (
-              'incident.state_changed',
-              ${JSON.stringify({
-                newState: "corroborated",
-                oldState: "reviewing",
-              })}::jsonb
-            )
-        ) as event(event_type, metadata)
-        where id = ${incidentId}::uuid
-          and state = 'corroborated'
-          and facts_approved = true
-          and updated_at = ${now}
-          and reviewed_by_user_id = ${reviewerUserId}
-      `,
-  );
-
-  const insertMatchingJob = db
-    .insert(workflowJobs)
-    .select(
-      db
-        .select({
-          jobType: sql<string>`'ngo_matching'`.as("job_type"),
-          payload: sql<Record<string, unknown>>`jsonb_build_object(
-            'incidentId', ${incidentId},
-            'requestedByUserId', ${reviewerUserId}
-          )`.as("payload"),
-          idempotencyKey: sql<string>`${matchingJobKey}`.as("idempotency_key"),
-        })
-        .from(incidents)
-        .where(
-          and(
-            eq(incidents.id, incidentId),
-            eq(incidents.state, "corroborated"),
-            eq(incidents.factsApproved, true),
-            eq(incidents.updatedAt, now),
-            eq(incidents.reviewedByUserId, reviewerUserId),
-          ),
-        ),
-    )
-    .onConflictDoNothing({ target: workflowJobs.idempotencyKey });
-
-  const [updatedRows] = await db.batch([
-    updateIncident,
-    insertAuditEvents,
-    insertMatchingJob,
-  ]);
-  const [updated] = updatedRows;
-  return updated ?? null;
-}
-
-export async function updateIncidentScores(
-  incidentId: string,
-  scores: { confidenceScore: number; urgencyScore: number },
-  actorUserId: string,
-) {
-  const now = new Date();
-  const updateIncident = db
-    .update(incidents)
-    .set({ ...scores, updatedAt: now })
-    .where(eq(incidents.id, incidentId))
-    .returning({
-      confidenceScore: incidents.confidenceScore,
-      id: incidents.id,
-      urgencyScore: incidents.urgencyScore,
-    });
-  const insertAudit = db.insert(auditEvents).select(
-    sql`
-        select
-          gen_random_uuid(),
-          ${incidentId}::uuid,
-          ${actorUserId},
-          'scores.calculated',
-          ${JSON.stringify(scores)}::jsonb,
-          now()
-        from incidents
-        where id = ${incidentId}::uuid
-          and updated_at = ${now}
-      `,
-  );
-
-  const [updatedRows] = await db.batch([updateIncident, insertAudit]);
-  return updatedRows[0] ?? null;
-}
-
 export async function updateIncidentAgentAssessment(
   incidentId: string,
   values: {
     confidenceScore?: number;
     priorityLevel?: "P0" | "P1" | "P2" | "P3";
     urgencyScore?: number;
-    verificationStatus?:
-      | "agent_corroborated"
-      | "agent_review"
-      | "contradicted"
-      | "unverified";
   },
 ) {
   const [updated] = await db
     .update(incidents)
     .set({ ...values, updatedAt: new Date() })
+    .where(eq(incidents.id, incidentId))
+    .returning({ id: incidents.id });
+  return updated ?? null;
+}
+
+export async function startAutonomousVerification(incidentId: string) {
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+  const [updated] = await db
+    .update(incidents)
+    .set({
+      consensusAt: null,
+      state: "verifying",
+      updatedAt: now,
+      verificationExpiresAt: expiresAt,
+      verificationRevision: sql`${incidents.verificationRevision} + 1`,
+      verificationStatus: "pending",
+    })
+    .where(eq(incidents.id, incidentId))
+    .returning({
+      expiresAt: incidents.verificationExpiresAt,
+      id: incidents.id,
+      revision: incidents.verificationRevision,
+    });
+  return updated ?? null;
+}
+
+export async function applyAutonomousConsensus(
+  incidentId: string,
+  revision: number,
+  result: {
+    confidenceScore: number;
+    status: "corroborated" | "contradicted" | "inconclusive" | "expired";
+  },
+) {
+  const now = new Date();
+  const state =
+    result.status === "corroborated"
+      ? "corroborated"
+      : result.status === "contradicted"
+        ? "contradicted"
+        : "inconclusive";
+  const [updated] = await db
+    .update(incidents)
+    .set({
+      confidenceScore: result.confidenceScore,
+      consensusAt: now,
+      state,
+      updatedAt: now,
+      verificationStatus: result.status,
+    })
     .where(
-      and(eq(incidents.id, incidentId), eq(incidents.factsApproved, false)),
+      and(
+        eq(incidents.id, incidentId),
+        eq(incidents.verificationRevision, revision),
+      ),
+    )
+    .returning({ id: incidents.id, state: incidents.state });
+  return updated ?? null;
+}
+
+export async function markIncidentEscalationReady(
+  incidentId: string,
+  revision: number,
+) {
+  const [updated] = await db
+    .update(incidents)
+    .set({ state: "escalation_ready", updatedAt: new Date() })
+    .where(
+      and(
+        eq(incidents.id, incidentId),
+        eq(incidents.verificationRevision, revision),
+        eq(incidents.verificationStatus, "corroborated"),
+      ),
     )
     .returning({ id: incidents.id });
   return updated ?? null;
@@ -537,7 +320,7 @@ export async function createAutomaticIncident(input: {
       sourceType: input.sourceType,
       sourceUrl: input.sourceUrl,
       title: input.title,
-      verificationStatus: "agent_review",
+      verificationStatus: "pending",
     })
     .returning({ id: incidents.id });
   const linkObservation = db
@@ -612,11 +395,10 @@ export async function applyAgentClassification(
       division: values.division ?? "Unknown",
       extractionStatus: "complete",
       updatedAt: new Date(),
-      verificationStatus: "agent_review",
+      verificationStatus: "pending",
     })
-    .where(
-      and(eq(incidents.id, incidentId), eq(incidents.factsApproved, false)),
-    )
+    .where(eq(incidents.id, incidentId))
     .returning({ id: incidents.id });
   return updated ?? null;
 }
+

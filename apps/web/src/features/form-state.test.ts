@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { toLocalDateTimeValue } from "./incidents/review-form-state";
 import {
   clearConsumedTurnstileToken,
   getNextTurnstileResetKey,
@@ -24,14 +23,5 @@ describe("report form retry state", () => {
 
   it("advances the widget reset key", () => {
     expect(getNextTurnstileResetKey(3)).toBe(4);
-  });
-});
-
-describe("incident review time state", () => {
-  it("round-trips an ISO timestamp through a datetime-local value", () => {
-    const occurredAt = "2026-07-18T08:00:00.000Z";
-    const localValue = toLocalDateTimeValue(occurredAt);
-
-    expect(new Date(localValue).toISOString()).toBe(occurredAt);
   });
 });

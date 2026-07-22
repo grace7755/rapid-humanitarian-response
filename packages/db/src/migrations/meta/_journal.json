@@ -15,6 +15,13 @@
       "when": 1784660307184,
       "tag": "0001_lyrical_captain_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784692800000,
+      "tag": "0002_autonomous_verification",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 import type { IncidentNeed, OrganizationSector } from "../incidents/types.js";
 
-export const NEED_TO_SECTORS = {
+const NEED_TO_SECTORS = {
   food: ["food_assistance", "nutrition"],
   information: ["information_management", "community_communication"],
   medical: ["health", "emergency_medical_support"],

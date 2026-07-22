@@ -38,6 +38,23 @@ const usgsResponseSchema = z.object({
   ),
 });
 
+const ffwcRecordSchema = z
+  .object({
+    danger_level: z.coerce.number().nullable().optional(),
+    district: z.string().nullable().optional(),
+    id: z.union([z.number(), z.string()]),
+    observed_at: z.string().nullable().optional(),
+    station_name: z.string().nullable().optional(),
+    status: z.string().nullable().optional(),
+    water_level: z.coerce.number().nullable().optional(),
+  })
+  .passthrough();
+const ffwcResponseSchema = z.union([
+  z.array(ffwcRecordSchema),
+  z.object({ data: z.array(ffwcRecordSchema) }),
+  z.object({ results: z.array(ffwcRecordSchema) }),
+]);
+
 const BANGLADESH_BOUNDS = {
   east: 92.8,
   north: 26.8,
@@ -78,7 +95,23 @@ async function fetchJson(
   return response.json();
 }
 
-export class ReliefWebConnector implements SourceConnector {
+async function fetchText(
+  fetchImplementation: typeof fetch,
+  url: string,
+  signal: AbortSignal,
+) {
+  const response = await fetchImplementation(url, {
+    headers: {
+      accept:
+        "application/rss+xml, application/atom+xml, application/xml, text/xml",
+    },
+    signal,
+  });
+  if (!response.ok) throw new Error("SOURCE_HTTP_ERROR");
+  return response.text();
+}
+
+class ReliefWebConnector implements SourceConnector {
   constructor(
     private readonly fetchImplementation: typeof fetch = fetch,
     private readonly appName?: string,
@@ -185,9 +218,140 @@ export class UsgsConnector implements SourceConnector {
   }
 }
 
-class ConfigurationRequiredConnector implements SourceConnector {
-  async poll(): Promise<never> {
-    throw new Error("SOURCE_NOT_CONFIGURED");
+class FfwcConnector implements SourceConnector {
+  constructor(private readonly fetchImplementation: typeof fetch = fetch) {}
+
+  async poll(input: Parameters<SourceConnector["poll"]>[0]) {
+    const parsed = ffwcResponseSchema.parse(
+      await fetchJson(this.fetchImplementation, input.endpoint, input.signal),
+    );
+    let records: z.infer<typeof ffwcRecordSchema>[];
+    if (Array.isArray(parsed)) {
+      records = parsed;
+    } else if ("data" in parsed) {
+      records = parsed.data;
+    } else {
+      records = parsed.results;
+    }
+    const observations = records
+      .filter((record) => {
+        const status = record.status?.toLowerCase() ?? "";
+        return (
+          /warning|flood|severe|danger/.test(status) ||
+          (record.water_level !== null &&
+            record.water_level !== undefined &&
+            record.danger_level !== null &&
+            record.danger_level !== undefined &&
+            record.water_level >= record.danger_level)
+        );
+      })
+      .map<ObservationCandidate>((record) => {
+        const publishedAt = record.observed_at
+          ? new Date(record.observed_at)
+          : null;
+        return {
+          canonicalUrl: input.endpoint,
+          district: record.district ?? null,
+          division: null,
+          excerpt: [
+            record.status,
+            record.water_level === null || record.water_level === undefined
+              ? null
+              : `Water level ${record.water_level}`,
+            record.danger_level === null || record.danger_level === undefined
+              ? null
+              : `Danger level ${record.danger_level}`,
+          ]
+            .filter(Boolean)
+            .join("; "),
+          externalId: String(record.id),
+          incidentTypeCandidate: "flood",
+          publishedAt,
+          restrictedPayload: {},
+          title: record.station_name
+            ? `FFWC flood warning at ${record.station_name}`
+            : "FFWC flood warning",
+        };
+      });
+    return {
+      cursor:
+        observations
+          .map((item) => item.publishedAt?.toISOString())
+          .filter((value): value is string => Boolean(value))
+          .sort()
+          .at(-1) ??
+        input.cursor ??
+        new Date().toISOString(),
+      observations,
+    };
+  }
+}
+
+function xmlValue(block: string, tag: string) {
+  const match = block.match(
+    new RegExp(
+      `<${tag}(?:\\s[^>]*)?>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</${tag}>`,
+      "i",
+    ),
+  );
+  return match?.[1]
+    ?.replace(/<[^>]+>/g, " ")
+    .replaceAll("&amp;", "&")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+class RssConnector implements SourceConnector {
+  constructor(private readonly fetchImplementation: typeof fetch = fetch) {}
+
+  async poll(input: Parameters<SourceConnector["poll"]>[0]) {
+    const xml = await fetchText(
+      this.fetchImplementation,
+      input.endpoint,
+      input.signal,
+    );
+    const blocks =
+      xml.match(/<(?:item|entry)(?:\s[^>]*)?>[\s\S]*?<\/(?:item|entry)>/gi) ??
+      [];
+    const observations = blocks
+      .slice(0, 50)
+      .map<ObservationCandidate>((block, index) => {
+        const title = xmlValue(block, "title") ?? null;
+        const excerpt =
+          xmlValue(block, "description") ?? xmlValue(block, "summary") ?? null;
+        const published =
+          xmlValue(block, "pubDate") ??
+          xmlValue(block, "published") ??
+          xmlValue(block, "updated");
+        const href = block.match(/<link[^>]+href=["']([^"']+)["']/i)?.[1];
+        const link = href ?? xmlValue(block, "link") ?? null;
+        const guid = xmlValue(block, "guid") ?? xmlValue(block, "id") ?? link;
+        const combined = `${title ?? ""} ${excerpt ?? ""}`;
+        return {
+          canonicalUrl: link,
+          district: null,
+          division: null,
+          excerpt,
+          externalId: guid ?? `${index}:${published ?? title ?? "entry"}`,
+          incidentTypeCandidate: mapDisasterType(combined),
+          publishedAt: published ? new Date(published) : null,
+          restrictedPayload: {},
+          title,
+        };
+      });
+    return {
+      cursor:
+        observations
+          .map((item) => item.publishedAt?.toISOString())
+          .filter((value): value is string => Boolean(value))
+          .sort()
+          .at(-1) ??
+        input.cursor ??
+        new Date().toISOString(),
+      observations,
+    };
   }
 }
 
@@ -203,9 +367,8 @@ export function createConnector(
     );
   }
   if (connectorType === "usgs") return new UsgsConnector(fetchImplementation);
-  if (connectorType === "ffwc" || connectorType === "rss") {
-    return new ConfigurationRequiredConnector();
-  }
+  if (connectorType === "ffwc") return new FfwcConnector(fetchImplementation);
+  if (connectorType === "rss") return new RssConnector(fetchImplementation);
   throw new Error("CONNECTOR_NOT_SUPPORTED");
 }
 

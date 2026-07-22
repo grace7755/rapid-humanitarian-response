@@ -1,14 +1,18 @@
 import type { z } from "zod";
 
-export const AGENT_NAMES = [
+const AGENT_NAMES = [
   "monitoring",
   "correlation",
   "classification",
-  "verification",
+  "verification_official",
+  "verification_humanitarian_news",
+  "verification_contradiction",
+  "verification_consensus",
   "priority",
   "communication",
   "voice",
   "ngo_matching",
+  "partner_notification",
   "reporting",
 ] as const;
 
@@ -18,16 +22,6 @@ export type AgentContext = {
   jobId: string;
   runId: string;
 };
-
-export type AgentResult<T> = {
-  output: T;
-  summary: Record<string, boolean | number | string | null>;
-};
-
-export interface Agent<I, O> {
-  readonly name: AgentName;
-  execute(context: AgentContext, input: I): Promise<AgentResult<O>>;
-}
 
 export type StructuredModelRequest<T> = {
   schema: z.ZodType<T>;
@@ -59,7 +53,7 @@ export type ObservationCandidate = {
   title: string | null;
 };
 
-export type PollResult = {
+type PollResult = {
   cursor: string;
   observations: ObservationCandidate[];
 };

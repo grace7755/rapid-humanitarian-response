@@ -15,7 +15,7 @@ function OrganizationsRoute() {
       <main className="mx-auto w-full max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
         <PageHeader
           description="Read-only records used for deterministic matching. A listing does not mean an organization is available."
-          eyebrow="Protected operator registry"
+          eyebrow="Protected observer registry"
           title="Reviewed organizations"
         />
         <OrganizationList />

@@ -65,9 +65,9 @@ export default function SignUpForm({
 
   return (
     <div className="w-full rounded-xl border bg-card p-5 shadow-sm sm:p-7">
-      <h1 className="mb-2 text-center font-bold text-3xl">Operator setup</h1>
+      <h1 className="mb-2 text-center font-bold text-3xl">Observer setup</h1>
       <p className="mb-6 text-center text-muted-foreground">
-        Account creation succeeds only for pre-authorized operator emails.
+        Account creation succeeds only for pre-authorized observer emails.
       </p>
 
       {authError ? (
@@ -173,7 +173,7 @@ export default function SignUpForm({
               className="min-h-11 w-full"
               disabled={!canSubmit || isSubmitting}
             >
-              {isSubmitting ? "Creating account…" : "Create operator account"}
+              {isSubmitting ? "Creating account…" : "Create observer account"}
             </Button>
           )}
         </form.Subscribe>

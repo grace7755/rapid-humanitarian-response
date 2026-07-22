@@ -7,15 +7,14 @@ import EmptyState from "@/components/empty-state";
 import LoadingState from "@/components/loading-state";
 import PageHeader from "@/components/page-header";
 import PrototypeBanner from "@/components/prototype-banner";
-import EvidenceForm from "@/features/evidence/evidence-form";
 import EvidenceList from "@/features/evidence/evidence-list";
 import IncidentMatches from "@/features/organizations/incident-matches";
 import { orpc } from "@/utils/orpc";
 
-import ApprovalGate from "./approval-gate";
-import IncidentReviewForm from "./incident-review-form";
 import IncidentStatus from "./incident-status";
+import NotificationPanel from "./notification-panel";
 import ScorePanel from "./score-panel";
+import VerificationPanel from "./verification-panel";
 
 function getRawDescription(rawReport: string) {
   try {
@@ -36,7 +35,7 @@ function getRawDescription(rawReport: string) {
 
 export default function IncidentDetail({ incidentId }: { incidentId: string }) {
   const incidentQuery = useQuery(
-    orpc.operator.incident.get.queryOptions({
+    orpc.observer.incident.get.queryOptions({
       input: { incidentId },
     }),
   );
@@ -74,8 +73,8 @@ export default function IncidentDetail({ incidentId }: { incidentId: string }) {
       return (
         <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6">
           <EmptyState
-            description="Your account is not authorized to view protected incident data. Ask an administrator to verify your operator access."
-            title="Operator access unavailable"
+            description="Your account is not authorized to view protected incident data."
+            title="Observer access unavailable"
           />
           <Button
             className="mt-5 min-h-11"
@@ -135,8 +134,8 @@ export default function IncidentDetail({ incidentId }: { incidentId: string }) {
       <PrototypeBanner />
       <main className="mx-auto w-full max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
         <PageHeader
-          description={`${location || "Location awaiting review"} · Reference ${incident.reference}`}
-          eyebrow="Protected operator workspace"
+          description={`${location || "Location not yet resolved"} · Reference ${incident.reference}`}
+          eyebrow="Read-only autonomous operations console"
           title={incident.title || "Untitled submitted incident"}
         />
 
@@ -177,17 +176,48 @@ export default function IncidentDetail({ incidentId }: { incidentId: string }) {
                   className="font-semibold text-xl"
                   id="reviewed-facts-heading"
                 >
-                  Reviewed facts
+                  Extracted incident facts
                 </h2>
                 <p className="mt-2 text-muted-foreground text-sm leading-6">
-                  These fields are editable operator judgments. Saving does not
-                  verify the report.
+                  Classification agents extracted these fields. The console
+                  cannot edit or approve them.
                 </p>
               </div>
-              <IncidentReviewForm
-                incident={incident}
-                key={incident.updatedAt}
-              />
+              <dl className="grid gap-4 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="font-medium">Incident type</dt>
+                  <dd className="mt-1 text-muted-foreground capitalize">
+                    {incident.incidentType?.replaceAll("_", " ") || "Unknown"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-medium">Occurred</dt>
+                  <dd className="mt-1 text-muted-foreground">
+                    {incident.occurredAt
+                      ? new Date(incident.occurredAt).toLocaleString()
+                      : "Unknown"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-medium">Reported needs</dt>
+                  <dd className="mt-1 text-muted-foreground capitalize">
+                    {incident.needs
+                      .map((need) => need.replaceAll("_", " "))
+                      .join(", ") || "None extracted"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-medium">Affected estimate</dt>
+                  <dd className="mt-1 text-muted-foreground">
+                    {incident.affectedEstimate ?? "Unknown"}
+                  </dd>
+                </div>
+              </dl>
+              {incident.summary ? (
+                <p className="mt-5 whitespace-pre-wrap leading-7">
+                  {incident.summary}
+                </p>
+              ) : null}
             </section>
 
             <section
@@ -199,17 +229,12 @@ export default function IncidentDetail({ incidentId }: { incidentId: string }) {
                   Public evidence
                 </h2>
                 <p className="mt-2 text-muted-foreground text-sm leading-6">
-                  Record how each public source relates to the reviewed facts.
-                  Evidence links and operator decisions remain protected.
+                  Monitoring and verifier agents linked these public sources.
+                  Publisher and content independence are calculated
+                  automatically.
                 </p>
               </div>
               <EvidenceList incidentId={incident.id} />
-              <div className="border-t pt-6">
-                <h3 className="mb-4 font-semibold text-lg">
-                  Add evidence record
-                </h3>
-                <EvidenceForm incidentId={incident.id} />
-              </div>
             </section>
 
             <section
@@ -221,27 +246,31 @@ export default function IncidentDetail({ incidentId }: { incidentId: string }) {
                   Confidence and urgency
                 </h2>
                 <p className="mt-2 text-muted-foreground text-sm leading-6">
-                  Confidence measures available evidence, not truth. Urgency
-                  reflects reported conditions. Neither score is produced by AI.
+                  Confidence measures independent corroboration; urgency
+                  reflects reported conditions. Both remain observable and
+                  non-editable.
                 </p>
               </div>
               <ScorePanel incidentId={incident.id} />
             </section>
 
             <section
-              aria-labelledby="approval-heading"
+              aria-labelledby="verification-heading"
               className="space-y-6 rounded-xl border bg-card p-5 sm:p-6"
             >
               <div>
-                <h2 className="font-semibold text-xl" id="approval-heading">
-                  Fact approval gate
+                <h2 className="font-semibold text-xl" id="verification-heading">
+                  Independent verifier agents
                 </h2>
                 <p className="mt-2 text-muted-foreground text-sm leading-6">
-                  Every condition is re-read and recalculated on the server when
-                  approval is requested.
+                  Three dedicated agents evaluate official sources,
+                  humanitarian/news sources, and credible contradictions.
                 </p>
               </div>
-              <ApprovalGate incident={incident} />
+              <VerificationPanel
+                incidentId={incident.id}
+                revision={incident.verificationRevision}
+              />
             </section>
 
             <section
@@ -250,13 +279,26 @@ export default function IncidentDetail({ incidentId }: { incidentId: string }) {
             >
               <div>
                 <h2 className="font-semibold text-xl" id="matches-heading">
-                  Reviewed organization matches
+                  Autonomous organization matches
                 </h2>
               </div>
-              <IncidentMatches
-                canGenerate={incident.factsApproved}
-                incidentId={incident.id}
-              />
+              <IncidentMatches incidentId={incident.id} />
+            </section>
+
+            <section
+              aria-labelledby="delivery-heading"
+              className="space-y-6 rounded-xl border bg-card p-5 sm:p-6"
+            >
+              <div>
+                <h2 className="font-semibold text-xl" id="delivery-heading">
+                  Partner email delivery
+                </h2>
+                <p className="mt-2 text-muted-foreground text-sm leading-6">
+                  Only reviewed, opted-in partners can receive an autonomous
+                  alert. The platform never calls 999.
+                </p>
+              </div>
+              <NotificationPanel incidentId={incident.id} />
             </section>
           </div>
 

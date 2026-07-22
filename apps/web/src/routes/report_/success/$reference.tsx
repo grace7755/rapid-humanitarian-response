@@ -17,7 +17,7 @@ function ReportSuccessRoute() {
       <main className="mx-auto w-full max-w-2xl px-4 py-12 sm:px-6">
         <div className="space-y-6 rounded-xl border bg-card p-6 shadow-sm sm:p-8">
           <PageHeader
-            description="The report was stored for operator review. This confirmation does not mean the report was verified or that an organization was contacted."
+            description="The report entered the autonomous verification queue. This confirmation does not mean the incident passed consensus or that a partner was notified."
             eyebrow="Report received"
             title="Thank you for reporting carefully"
           />

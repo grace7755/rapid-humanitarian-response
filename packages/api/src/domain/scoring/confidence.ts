@@ -6,7 +6,7 @@ import type {
   ScoreBreakdownEntry,
 } from "./types.js";
 
-export const EVIDENCE_BASE_VALUES = {
+const EVIDENCE_BASE_VALUES = {
   community_eyewitness: 20,
   established_humanitarian: 60,
   established_news: 50,
@@ -68,14 +68,14 @@ export function calculateConfidence(input: ConfidenceInput): ConfidenceResult {
   if (independentSupportingCount >= 2) {
     breakdown.push({
       key: "second-independent-source",
-      label: "Second operator-confirmed independent supporting source",
+      label: "Second independently sourced supporting report",
       points: 20,
     });
   }
   if (independentSupportingCount >= 3) {
     breakdown.push({
       key: "third-independent-source",
-      label: "Third operator-confirmed independent supporting source",
+      label: "Third independently sourced supporting report",
       points: 10,
     });
   }

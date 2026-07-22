@@ -16,7 +16,7 @@ export type ReplacementMatch = Pick<
 export async function replaceIncidentMatches(
   incidentId: string,
   matches: ReplacementMatch[],
-  actorUserId: string,
+  actorUserId: string | null = null,
 ) {
   const deleteExisting = db
     .delete(incidentMatches)

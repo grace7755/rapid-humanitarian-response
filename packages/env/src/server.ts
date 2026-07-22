@@ -11,7 +11,7 @@ function booleanString(defaultValue: "true" | "false") {
     .transform((value) => value === "true");
 }
 
-export function parseOperatorAllowlist(value: string | undefined) {
+function parseObserverAllowlist(value: string | undefined) {
   if (!value) return [];
 
   return [
@@ -35,10 +35,10 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
-    OPERATOR_EMAIL_ALLOWLIST: z
+    OBSERVER_EMAIL_ALLOWLIST: z
       .string()
       .optional()
-      .transform(parseOperatorAllowlist)
+      .transform(parseObserverAllowlist)
       .superRefine((value, context) => {
         if (isProduction && value.length === 0) {
           context.addIssue({
@@ -57,8 +57,8 @@ export const env = createEnv({
     RELIEFWEB_APP_NAME: z.string().trim().min(3).optional(),
     CRON_SECRET: z.string().min(16).optional(),
     MONITORING_ENABLED: booleanString("false"),
-    LIVE_OUTREACH_ENABLED: booleanString("false"),
-    VOICE_ENABLED: booleanString("false"),
+    AUTONOMOUS_ESCALATION_ENABLED: booleanString("false"),
+    PARTNER_EMAIL_ENABLED: booleanString("false"),
     PILOT_DISTRICTS: z
       .string()
       .default("Cox's Bazar,Chattogram")
@@ -68,9 +68,9 @@ export const env = createEnv({
           .map((district) => district.trim())
           .filter(Boolean),
       ),
-    VAPI_API_KEY: z.string().trim().min(1).optional(),
-    VAPI_PHONE_NUMBER_ID: z.string().trim().min(1).optional(),
-    VAPI_WEBHOOK_SECRET: z.string().min(16).optional(),
+    RESEND_API_KEY: z.string().trim().min(1).optional(),
+    PARTNER_ALERT_FROM: z.string().trim().min(3).optional(),
+    RESEND_WEBHOOK_SECRET: z.string().trim().min(16).optional(),
     TURNSTILE_SECRET_KEY: z
       .string()
       .trim()

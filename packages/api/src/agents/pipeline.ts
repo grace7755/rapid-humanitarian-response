@@ -4,11 +4,13 @@ import {
 } from "@my-better-t-app/db/queries/evidence";
 import {
   applyAgentClassification,
+  applyAutonomousConsensus,
   createAutomaticIncident,
   findIncidentCorrelationCandidates,
   findUniqueDistrictMention,
-  getIncidentForOperator,
+  getIncidentForObserver,
   recordCommunityReportCorrelation,
+  startAutonomousVerification,
   updateIncidentAgentAssessment,
 } from "@my-better-t-app/db/queries/incidents";
 import {
@@ -19,11 +21,14 @@ import {
   listObservationsForIncident,
   updateMonitoringSourcePoll,
 } from "@my-better-t-app/db/queries/monitoring";
+import {
+  listVerificationVerdicts,
+  upsertVerificationVerdict,
+} from "@my-better-t-app/db/queries/verification";
 import { enqueueWorkflowJob } from "@my-better-t-app/db/queries/workflows";
 import { env } from "@my-better-t-app/env/server";
 import { z } from "zod";
 
-import { evaluateEvidenceGate } from "../domain/incidents/approval.js";
 import {
   EVIDENCE_RELATIONSHIPS,
   EVIDENCE_SOURCE_CATEGORIES,
@@ -31,9 +36,17 @@ import {
   INCIDENT_TYPES,
   OCCURRENCE_PRECISIONS,
 } from "../domain/incidents/constants.js";
-import { riskFlagsSchema } from "../domain/incidents/review.js";
+import { riskFlagsSchema } from "../domain/incidents/risk-flags.js";
+import { calculateConfidence } from "../domain/scoring/confidence.js";
 import type { ConfidenceEvidence } from "../domain/scoring/types.js";
 import { calculateUrgency } from "../domain/scoring/urgency.js";
+import {
+  evaluateConsensus,
+  evaluateVerifier,
+  type StoredVerifierVerdict,
+  type VerificationEvidence,
+  type VerifierRole,
+} from "../domain/verification/consensus.js";
 import { OpenRouterModelGateway } from "../services/openrouter.js";
 import { createConnector, hashObservation } from "./connectors.js";
 import type { AgentContext, ModelGateway } from "./contracts.js";
@@ -43,9 +56,12 @@ const sourceJobSchema = z.object({ sourceId: z.uuid() }).strict();
 const observationJobSchema = z
   .object({ incidentId: z.uuid().optional(), observationId: z.uuid() })
   .strict();
-const assessmentJobSchema = z
-  .object({ incidentId: z.uuid(), observationId: z.uuid() })
+const verifierJobSchema = z
+  .object({ incidentId: z.uuid(), revision: z.number().int().positive() })
   .strict();
+const consensusJobSchema = verifierJobSchema.extend({
+  expire: z.boolean().optional(),
+});
 
 const classificationSchema = z
   .object({
@@ -284,19 +300,44 @@ export async function runClassificationAgent(
       ? new Date(classification.occurredAt)
       : null,
   });
-  await enqueueWorkflowJob({
-    idempotencyKey: `verification:${input.incidentId}:${input.observationId}`,
-    jobType: "verification",
-    payload: {
-      incidentId: input.incidentId,
-      observationId: input.observationId,
-    },
-  });
+  const verification = updated
+    ? await startAutonomousVerification(input.incidentId)
+    : null;
+  if (verification) {
+    const jobs = [
+      "verification_official",
+      "verification_humanitarian_news",
+      "verification_contradiction",
+    ] as const;
+    for (const jobType of jobs) {
+      await enqueueWorkflowJob({
+        idempotencyKey: `${jobType}:${input.incidentId}:${verification.revision}`,
+        jobType,
+        payload: {
+          incidentId: input.incidentId,
+          revision: verification.revision,
+        },
+      });
+    }
+    if (verification.expiresAt) {
+      await enqueueWorkflowJob({
+        availableAt: verification.expiresAt,
+        idempotencyKey: `verification_expiry:${input.incidentId}:${verification.revision}`,
+        jobType: "verification_consensus",
+        payload: {
+          expire: true,
+          incidentId: input.incidentId,
+          revision: verification.revision,
+        },
+      });
+    }
+  }
   return {
     incidentId: input.incidentId,
     modelId,
     modelProvider,
     skipped: !updated,
+    verificationRevision: verification?.revision ?? null,
   };
 }
 
@@ -309,21 +350,21 @@ function sourceCategory(trustTier: string) {
   return "unknown";
 }
 
-export async function runVerificationAgent(
+async function syncObservationEvidence(
   context: AgentContext,
-  rawInput: Record<string, unknown>,
+  incidentId: string,
 ) {
-  const input = assessmentJobSchema.parse(rawInput);
   const [incident, observations, existingEvidence] = await Promise.all([
-    getIncidentForOperator(input.incidentId),
-    listObservationsForIncident(input.incidentId),
-    listEvidenceForIncident(input.incidentId),
+    getIncidentForObserver(incidentId),
+    listObservationsForIncident(incidentId),
+    listEvidenceForIncident(incidentId),
   ]);
   if (!incident) throw new Error("INCIDENT_NOT_FOUND");
 
   const knownDomains = new Set(
     existingEvidence.map((item) => item.publisherDomain),
   );
+  const knownContentHashes = new Set<string>();
   for (const observation of observations) {
     if (!observation.canonicalUrl) continue;
     const publisherDomain = new URL(
@@ -331,15 +372,38 @@ export async function runVerificationAgent(
     ).hostname.toLowerCase();
     await addAgentEvidence({
       agentRunId: context.runId,
-      incidentId: input.incidentId,
-      isIndependent: !knownDomains.has(publisherDomain),
+      incidentId,
+      isIndependent:
+        !knownDomains.has(publisherDomain) &&
+        !knownContentHashes.has(observation.contentHash),
       observationId: observation.id,
       publisherDomain,
+      relationship:
+        observation.incidentTypeCandidate &&
+        incident.incidentType &&
+        observation.incidentTypeCandidate !== incident.incidentType
+          ? "contradicts"
+          : "supports",
       sourceCategory: sourceCategory(observation.trustTier),
       sourceName: observation.sourceName,
       url: observation.canonicalUrl,
     });
     knownDomains.add(publisherDomain);
+    knownContentHashes.add(observation.contentHash);
+  }
+
+  return incident;
+}
+
+async function runVerifierAgent(
+  role: VerifierRole,
+  context: AgentContext,
+  rawInput: Record<string, unknown>,
+) {
+  const input = verifierJobSchema.parse(rawInput);
+  const incident = await syncObservationEvidence(context, input.incidentId);
+  if (incident.verificationRevision !== input.revision) {
+    return { revision: input.revision, role, skipped: true };
   }
 
   const evidence = await listEvidenceForIncident(input.incidentId);
@@ -351,7 +415,7 @@ export async function runVerificationAgent(
       .enum(EVIDENCE_SOURCE_CATEGORIES)
       .parse(item.sourceCategory),
   }));
-  const gate = evaluateEvidenceGate({
+  const confidence = calculateConfidence({
     district: incident.district,
     evidence: parsedEvidence,
     locationText: incident.locationText,
@@ -360,38 +424,163 @@ export async function runVerificationAgent(
       .enum(OCCURRENCE_PRECISIONS)
       .parse(incident.occurredAtPrecision),
   });
-  const verificationStatus =
-    gate.confidence.label === "Corroborated"
-      ? "agent_corroborated"
-      : "agent_review";
-  const updated = await updateIncidentAgentAssessment(input.incidentId, {
-    confidenceScore: gate.confidence.score,
-    verificationStatus,
+  const verificationEvidence: VerificationEvidence[] = evidence.map((item) => ({
+    id: item.id,
+    isIndependent: item.isIndependent,
+    publisherDomain: item.publisherDomain,
+    relationship: z.enum(EVIDENCE_RELATIONSHIPS).parse(item.relationship),
+    sourceCategory: z
+      .enum(EVIDENCE_SOURCE_CATEGORIES)
+      .parse(item.sourceCategory),
+  }));
+  const verdict = evaluateVerifier(role, verificationEvidence);
+  await upsertVerificationVerdict({
+    agentRunId: context.runId,
+    confidenceScore: confidence.score,
+    evidenceIds: verificationEvidence.map((item) => item.id),
+    incidentId: input.incidentId,
+    reasonCodes:
+      verdict.verdict === "inconclusive" ? ["insufficient-role-evidence"] : [],
+    revision: input.revision,
+    sourceDomains: verdict.sourceDomains,
+    sourceFamilies: verdict.sourceFamilies,
+    verdict: verdict.verdict,
+    verifierRole: role,
   });
-  if (updated) {
+  await enqueueWorkflowJob({
+    idempotencyKey: `verification_consensus:${input.incidentId}:${input.revision}:${role}`,
+    jobType: "verification_consensus",
+    payload: input,
+  });
+  return {
+    confidenceScore: confidence.score,
+    revision: input.revision,
+    role,
+    verdict: verdict.verdict,
+  };
+}
+
+export function runOfficialVerificationAgent(
+  context: AgentContext,
+  rawInput: Record<string, unknown>,
+) {
+  return runVerifierAgent("official_sources", context, rawInput);
+}
+
+export function runHumanitarianNewsVerificationAgent(
+  context: AgentContext,
+  rawInput: Record<string, unknown>,
+) {
+  return runVerifierAgent("humanitarian_news", context, rawInput);
+}
+
+export function runContradictionVerificationAgent(
+  context: AgentContext,
+  rawInput: Record<string, unknown>,
+) {
+  return runVerifierAgent("contradiction", context, rawInput);
+}
+
+export async function runVerificationConsensusAgent(
+  _context: AgentContext,
+  rawInput: Record<string, unknown>,
+) {
+  const input = consensusJobSchema.parse(rawInput);
+  const [incident, evidence, storedVerdicts] = await Promise.all([
+    getIncidentForObserver(input.incidentId),
+    listEvidenceForIncident(input.incidentId),
+    listVerificationVerdicts(input.incidentId, input.revision),
+  ]);
+  if (!incident) throw new Error("INCIDENT_NOT_FOUND");
+  if (incident.verificationRevision !== input.revision) {
+    return { revision: input.revision, skipped: true };
+  }
+  const confidence = calculateConfidence({
+    district: incident.district,
+    evidence: evidence.map((item) => ({
+      id: item.id,
+      isIndependent: item.isIndependent,
+      relationship: z.enum(EVIDENCE_RELATIONSHIPS).parse(item.relationship),
+      sourceCategory: z
+        .enum(EVIDENCE_SOURCE_CATEGORIES)
+        .parse(item.sourceCategory),
+    })),
+    locationText: incident.locationText,
+    occurredAt: incident.occurredAt,
+    occurredAtPrecision: z
+      .enum(OCCURRENCE_PRECISIONS)
+      .parse(incident.occurredAtPrecision),
+  });
+  const verdicts: StoredVerifierVerdict[] = storedVerdicts.map((item) => ({
+    role: z
+      .enum(["official_sources", "humanitarian_news", "contradiction"])
+      .parse(item.verifierRole),
+    sourceDomains: item.sourceDomains,
+    sourceFamilies: item.sourceFamilies,
+    verdict: z
+      .enum(["supports", "contradicts", "inconclusive"])
+      .parse(item.verdict),
+  }));
+  let result = evaluateConsensus({
+    confidenceScore: confidence.score,
+    district: incident.district,
+    incidentType: incident.incidentType,
+    locationText: incident.locationText,
+    occurredAt: incident.occurredAt,
+    verdicts,
+  });
+  if (
+    input.expire &&
+    result.status === "inconclusive" &&
+    incident.verificationExpiresAt &&
+    incident.verificationExpiresAt <= new Date()
+  ) {
+    result = { ...result, status: "inconclusive" };
+    await applyAutonomousConsensus(input.incidentId, input.revision, {
+      confidenceScore: confidence.score,
+      status: "expired",
+    });
+    return { ...result, expired: true, revision: input.revision };
+  }
+  if (result.status === "inconclusive") {
+    return { ...result, revision: input.revision };
+  }
+  const updated = await applyAutonomousConsensus(
+    input.incidentId,
+    input.revision,
+    {
+      confidenceScore: confidence.score,
+      status: result.status,
+    },
+  );
+  if (updated && result.passed) {
     await enqueueWorkflowJob({
-      idempotencyKey: `priority:${input.incidentId}:${input.observationId}`,
+      idempotencyKey: `priority:${input.incidentId}:${input.revision}`,
       jobType: "priority",
-      payload: {
-        incidentId: input.incidentId,
-        observationId: input.observationId,
-      },
+      payload: { incidentId: input.incidentId, revision: input.revision },
+    });
+    await enqueueWorkflowJob({
+      idempotencyKey: `ngo_matching:${input.incidentId}:${input.revision}`,
+      jobType: "ngo_matching",
+      payload: { incidentId: input.incidentId, revision: input.revision },
     });
   }
-  return {
-    confidenceScore: gate.confidence.score,
-    skipped: !updated,
-    verificationStatus,
-  };
+  return { ...result, revision: input.revision, skipped: !updated };
 }
 
 export async function runPriorityAgent(
   _context: AgentContext,
   rawInput: Record<string, unknown>,
 ) {
-  const input = assessmentJobSchema.parse(rawInput);
-  const incident = await getIncidentForOperator(input.incidentId);
+  const input = verifierJobSchema.parse(rawInput);
+  const incident = await getIncidentForObserver(input.incidentId);
   if (!incident) throw new Error("INCIDENT_NOT_FOUND");
+  if (
+    incident.verificationRevision !== input.revision ||
+    incident.verificationStatus !== "corroborated"
+  ) {
+    return { skipped: true };
+  }
   const urgency = calculateUrgency({ riskFlags: incident.riskFlags });
   const priorityLevel =
     urgency.score >= 75

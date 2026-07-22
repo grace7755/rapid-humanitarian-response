@@ -71,4 +71,3 @@ export const publicReportOutputSchema = z
   .strict();
 
 export type PublicReportInput = z.infer<typeof publicReportInputSchema>;
-export type PublicReportOutput = z.infer<typeof publicReportOutputSchema>;
