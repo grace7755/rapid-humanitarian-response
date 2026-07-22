@@ -59,7 +59,6 @@ describe("agent assessment revisions", () => {
     evidenceMocks.listEvidenceForIncident.mockResolvedValue([]);
     workflowMocks.enqueueWorkflowJob.mockResolvedValue({ id: "job" });
     incidentMocks.startAutonomousVerification.mockResolvedValue({
-      expiresAt: new Date("2026-07-22T14:00:00.000Z"),
       id: incidentId,
       revision: 1,
     });
@@ -126,6 +125,40 @@ describe("agent assessment revisions", () => {
     );
     expect(workflowMocks.enqueueWorkflowJob).not.toHaveBeenCalledWith(
       expect.objectContaining({ idempotencyKey: `priority:${incidentId}` }),
+    );
+  });
+
+  it("leaves expiry scheduling to startAutonomousVerification", async () => {
+    monitoringMocks.getObservationForAgent.mockResolvedValue({
+      district: "Feni",
+      division: "Chattogram",
+      excerpt: "Flood water has entered homes",
+      id: observationId,
+      incidentTypeCandidate: "flood",
+      publishedAt: new Date("2026-07-22T08:00:00.000Z"),
+      restrictedPayload: {},
+      title: "Flood in Feni",
+    });
+    incidentMocks.applyAgentClassification.mockResolvedValue({
+      id: incidentId,
+    });
+
+    await runClassificationAgent(
+      context,
+      { incidentId, observationId },
+      {
+        generateStructured: vi
+          .fn()
+          .mockRejectedValue(new Error("MODEL_NOT_CONFIGURED")),
+      },
+    );
+
+    // The expiry job is written atomically with the revision bump, so a revision
+    // cannot exist without it even when this agent later fails.
+    expect(workflowMocks.enqueueWorkflowJob).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        idempotencyKey: `verification_expiry:${incidentId}:1`,
+      }),
     );
   });
 

@@ -1,6 +1,33 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
+  "globalEnv": [
+    "CI",
+    "NODE_ENV",
+    "DATABASE_URL",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "CORS_ORIGIN",
+    "OBSERVER_EMAIL_ALLOWLIST",
+    "OPENROUTER_API_KEY",
+    "OPENROUTER_MODEL",
+    "OPENROUTER_APP_NAME",
+    "OPENROUTER_APP_URL",
+    "RELIEFWEB_APP_NAME",
+    "CRON_SECRET",
+    "MONITORING_ENABLED",
+    "AUTONOMOUS_ESCALATION_ENABLED",
+    "PARTNER_EMAIL_ENABLED",
+    "PILOT_DISTRICTS",
+    "RESEND_API_KEY",
+    "PARTNER_ALERT_FROM",
+    "RESEND_WEBHOOK_SECRET",
+    "TURNSTILE_SECRET_KEY",
+    "DEMO_MODE",
+    "SKIP_ENV_VALIDATION",
+    "VITE_SERVER_URL",
+    "VITE_TURNSTILE_SITE_KEY"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

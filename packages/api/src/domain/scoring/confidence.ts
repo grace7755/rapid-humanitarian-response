@@ -26,8 +26,13 @@ function clampScore(score: number) {
   return Math.min(100, Math.max(0, score));
 }
 
+// The "Corroborated" boundary must match the consensus gate's minimum confidence in
+// domain/verification/consensus.ts. If it is lower, the console labels incidents
+// "Corroborated" that the gate correctly refuses to escalate.
+export const CORROBORATED_CONFIDENCE_MINIMUM = 80;
+
 export function getConfidenceLabel(score: number): ConfidenceLabel {
-  if (score >= 70) return "Corroborated";
+  if (score >= CORROBORATED_CONFIDENCE_MINIMUM) return "Corroborated";
   if (score >= 40) return "Needs Review";
   return "Unverified";
 }

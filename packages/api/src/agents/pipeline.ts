@@ -319,18 +319,8 @@ export async function runClassificationAgent(
         },
       });
     }
-    if (verification.expiresAt) {
-      await enqueueWorkflowJob({
-        availableAt: verification.expiresAt,
-        idempotencyKey: `verification_expiry:${input.incidentId}:${verification.revision}`,
-        jobType: "verification_consensus",
-        payload: {
-          expire: true,
-          incidentId: input.incidentId,
-          revision: verification.revision,
-        },
-      });
-    }
+    // The six-hour expiry job is enqueued atomically by startAutonomousVerification,
+    // so that a revision cannot exist without it even if this agent later fails.
   }
   return {
     incidentId: input.incidentId,

@@ -164,25 +164,58 @@ export async function updateIncidentAgentAssessment(
 }
 
 export async function startAutonomousVerification(incidentId: string) {
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + 6 * 60 * 60 * 1000);
-  const [updated] = await db
-    .update(incidents)
-    .set({
-      consensusAt: null,
-      state: "verifying",
-      updatedAt: now,
-      verificationExpiresAt: expiresAt,
-      verificationRevision: sql`${incidents.verificationRevision} + 1`,
-      verificationStatus: "pending",
-    })
-    .where(eq(incidents.id, incidentId))
-    .returning({
-      expiresAt: incidents.verificationExpiresAt,
-      id: incidents.id,
-      revision: incidents.verificationRevision,
-    });
-  return updated ?? null;
+  const jobId = crypto.randomUUID();
+  // The revision bump and its six-hour expiry job are written in one statement so a
+  // revision can never exist without the job that expires it. Neon HTTP has no
+  // interactive transactions, so this uses the same CTE pattern as
+  // insertSourceObservationAndEnqueueCorrelation.
+  const result = await db.execute(sql<{ id: string; revision: number }>`
+    with bumped as (
+      update incidents
+      set
+        consensus_at = null,
+        state = 'verifying',
+        updated_at = now(),
+        verification_expires_at = now() + interval '6 hours',
+        verification_revision = verification_revision + 1,
+        verification_status = 'pending'
+      where id = ${incidentId}::uuid
+      returning id, verification_revision, verification_expires_at
+    ), enqueued as (
+      insert into workflow_jobs (
+        id,
+        job_type,
+        payload,
+        idempotency_key,
+        available_at
+      )
+      select
+        ${jobId}::uuid,
+        'verification_consensus',
+        jsonb_build_object(
+          'expire', true,
+          'incidentId', bumped.id::text,
+          'revision', bumped.verification_revision
+        ),
+        'verification_expiry:' || bumped.id::text || ':' || bumped.verification_revision::text,
+        bumped.verification_expires_at
+      from bumped
+      on conflict (idempotency_key) do nothing
+      returning id
+    )
+    select id, verification_revision as revision
+    from bumped
+  `);
+
+  const row = result.rows[0] as { id: string; revision: number } | undefined;
+  if (!row) return null;
+  // Postgres returns integers as strings over some drivers, so coerce and verify
+  // rather than trusting the raw value: callers key idempotent job names off it.
+  const revision = Number(row.revision);
+  if (!Number.isInteger(revision) || revision < 1) {
+    throw new Error("VERIFICATION_REVISION_INVALID");
+  }
+  return { id: row.id, revision };
 }
 
 export async function applyAutonomousConsensus(

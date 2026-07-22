@@ -2,6 +2,7 @@ import type {
   EvidenceRelationship,
   EvidenceSourceCategory,
 } from "../incidents/types.js";
+import { CORROBORATED_CONFIDENCE_MINIMUM } from "../scoring/confidence.js";
 
 export const VERIFIER_ROLES = [
   "official_sources",
@@ -129,7 +130,8 @@ export function evaluateConsensus(input: ConsensusInput): ConsensusResult {
   if (supporting.length < 2) reasons.push("verifier-quorum");
   if (domains.size < 2) reasons.push("independent-domains");
   if (families.size < 2) reasons.push("independent-source-families");
-  if (input.confidenceScore < 80) reasons.push("confidence-below-80");
+  if (input.confidenceScore < CORROBORATED_CONFIDENCE_MINIMUM)
+    reasons.push("confidence-below-80");
   if (!input.district && !input.locationText?.trim())
     reasons.push("missing-location");
   if (!input.incidentType) reasons.push("missing-incident-type");

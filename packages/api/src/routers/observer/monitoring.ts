@@ -1,5 +1,8 @@
 import { listMonitoringSources } from "@my-better-t-app/db/queries/monitoring";
-import { listRecentAgentRuns } from "@my-better-t-app/db/queries/workflows";
+import {
+  listDeadWorkflowJobs,
+  listRecentAgentRuns,
+} from "@my-better-t-app/db/queries/workflows";
 import { z } from "zod";
 
 import { observerProcedure } from "../../index.js";
@@ -31,6 +34,17 @@ const agentRunSchema = z
   })
   .strict();
 
+const deadJobSchema = z
+  .object({
+    attemptCount: z.number().int(),
+    id: z.uuid(),
+    jobType: z.string(),
+    lastErrorCode: z.string().nullable(),
+    maxAttempts: z.number().int(),
+    updatedAt: z.string(),
+  })
+  .strict();
+
 export const monitoringObserverRouter = {
   listAgentRuns: observerProcedure
     .input(
@@ -45,6 +59,21 @@ export const monitoringObserverRouter = {
           ...run,
           finishedAt: run.finishedAt?.toISOString() ?? null,
           startedAt: run.startedAt.toISOString(),
+        }),
+      ),
+    ),
+  listDeadJobs: observerProcedure
+    .input(
+      z
+        .object({ limit: z.number().int().min(1).max(100).default(50) })
+        .strict(),
+    )
+    .output(z.array(deadJobSchema))
+    .handler(async ({ input }) =>
+      (await listDeadWorkflowJobs(input.limit)).map((job) =>
+        deadJobSchema.parse({
+          ...job,
+          updatedAt: job.updatedAt.toISOString(),
         }),
       ),
     ),

@@ -143,3 +143,21 @@ export async function listRecentAgentRuns(limit = 50) {
     .orderBy(desc(agentRuns.startedAt))
     .limit(Math.max(1, Math.min(limit, 100)));
 }
+
+// Jobs that exhausted their retries. payload is deliberately not selected: it can
+// carry incident-identifying data that must not reach the observer console.
+export async function listDeadWorkflowJobs(limit = 50) {
+  return db
+    .select({
+      attemptCount: workflowJobs.attemptCount,
+      id: workflowJobs.id,
+      jobType: workflowJobs.jobType,
+      lastErrorCode: workflowJobs.lastErrorCode,
+      maxAttempts: workflowJobs.maxAttempts,
+      updatedAt: workflowJobs.updatedAt,
+    })
+    .from(workflowJobs)
+    .where(eq(workflowJobs.status, "dead"))
+    .orderBy(desc(workflowJobs.updatedAt))
+    .limit(Math.max(1, Math.min(limit, 100)));
+}

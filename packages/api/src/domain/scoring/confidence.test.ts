@@ -40,7 +40,7 @@ describe("confidence scoring", () => {
     });
 
     expect(result.score).toBe(70);
-    expect(result.label).toBe("Corroborated");
+    expect(result.label).toBe("Needs Review");
     expect(result.breakdown.map((entry) => entry.points)).toEqual([40, 20, 10]);
   });
 
@@ -92,7 +92,9 @@ describe("confidence scoring", () => {
     [39, "Unverified"],
     [40, "Needs Review"],
     [69, "Needs Review"],
-    [70, "Corroborated"],
+    [70, "Needs Review"],
+    [79, "Needs Review"],
+    [80, "Corroborated"],
     [100, "Corroborated"],
   ] as const)("labels %s as %s", (score, label) => {
     expect(getConfidenceLabel(score)).toBe(label);
